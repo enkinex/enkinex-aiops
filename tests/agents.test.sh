@@ -34,9 +34,18 @@ for f in "$AGENT_DIR"/*.md; do
 done
 
 section "model pins resolve on OpenRouter"
-CATALOG="$(timeout 120 opencode models openrouter 2>/dev/null || true)"
+# The only non-hermetic check in the suite: it needs the opencode binary and
+# a live catalog. Absent binary is environmental (CI runs without it) and
+# skips; a present binary returning nothing is a real signal and fails.
+if ! command -v opencode >/dev/null 2>&1; then
+    ok "skipped: opencode not installed, so pins cannot be checked here"
+    CATALOG=""
+else
+    CATALOG="$(timeout 120 opencode models openrouter 2>/dev/null || true)"
+fi
 if [ -z "$CATALOG" ]; then
-    no "fetched the OpenRouter catalog" "opencode models openrouter returned nothing"
+    command -v opencode >/dev/null 2>&1 &&
+        no "fetched the OpenRouter catalog" "opencode models openrouter returned nothing"
 else
     for f in "$AGENT_DIR"/*.md; do
         name="$(basename "$f" .md)"

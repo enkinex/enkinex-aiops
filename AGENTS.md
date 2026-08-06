@@ -34,7 +34,7 @@ every sibling; it writes no product code itself.
 | `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
 | `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
 | `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
-| `tests/` | **Golden-set regression** over the executable governance artefacts — 205 deterministic cases, no token cost. `just test`; gated by `just check`. |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 205 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
 | `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
 | `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing. See `mcp/README.md`. |
 | `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |

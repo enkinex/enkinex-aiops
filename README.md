@@ -29,7 +29,7 @@ Nothing is ever written to `$HOME`.
 | Recipe | What it does |
 |---|---|
 | `just check` | **The gate** — the regression suite plus a drift check |
-| `just test` | 205 deterministic cases over hooks, guard, resolved permissions, agent definitions |
+| `just test` | 205 cases over hooks, guard, resolved permissions, agent definitions. Offline except the model-pin check, which skips without the `opencode` binary |
 | `just sync-opencode` | Install the shared layer into every repo in `REPOS` |
 | `just verify-opencode` | Report drift between the sources here and each repo's copy |
 | `just ledger` | Append a cost snapshot to `loop/loop-log.md` |
