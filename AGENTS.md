@@ -1,0 +1,166 @@
+# enkinex-aiops
+
+The **control plane** of the enkinex project (Semantic & Governance as
+Code). This repo authors the shared agentic-loop artefacts consumed by
+every sibling; it writes no product code itself.
+
+## Sibling projects (flat clones under `~/Develop/enkinex/`)
+
+| Repo | What it is |
+|---|---|
+| [enkinex-odcs](../enkinex-odcs) | KCL library for the Open Data Contract Standard (ODCS v3.1.0) — published |
+| [enkinex-odps](../enkinex-odps) | KCL library for the Open Data Product Standard (ODPS v1.0.0) — published |
+| [enkinex-okf](../enkinex-okf) | KCL library for Google's Open Knowledge Format (OKF v0.2) — `v0.2-draft`; frontmatter families only |
+| [enkinex-databricks](../enkinex-databricks) | KCL library for Databricks Asset Bundles — v0.1.0 scaffold; benchmark vehicle of the opencode migration |
+| [enkinex-ossie](../enkinex-ossie) | KCL library for Apache Ossie — public; **not yet on the shared layer** |
+| [enkinex-odcs-tutorial](../enkinex-odcs-tutorial) | Worked ODCS example, pinned to the library version it teaches |
+| [enkinex-odps-tutorial](../enkinex-odps-tutorial) | Worked ODPS example, pinned to the library version it teaches |
+| [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Private until its Cloudflare credential review |
+| [.github](../.github) | Org profile. WebDev; protection but no CI — a profile README has nothing to gate |
+
+## Repo map
+
+| Path | Purpose |
+|---|---|
+| `opencode.jsonc` | **Shared baseline config — source of truth** (ADR-0005): model tiers, permission posture. Synced to every sibling's repo root via `just sync-opencode`; drift reported by `just verify-opencode`. Active in this repo as-is. |
+| `AGENTS.shared.md` | **Shared enkinex-wide instructions — source of truth.** Not distributed as a file: its content is injected into every repo's `AGENTS.md` as a delimited generated block, so opencode, Codex and Claude Code all read the same rules. |
+| `AGENTS.md` | This file — repo-specific instructions (auto-loaded) plus the generated shared block. Edit outside the markers only. |
+| `CLAUDE.md` | Generated Claude Code adapter — a single `@AGENTS.md` import, no rules of its own. |
+| `opencode.headless.json` | **Headless permission overlay — source of truth.** Plain JSON (opencode rejects comments inline); no `ask` actions, so unattended runs behave the same with or without `--auto`. Rationale in `scripts/opencode-headless.sh`. |
+| `githooks/` | **Git hook sources** — `commit-msg`, `pre-commit`, `pre-push`. The mechanical form of the rules AGENTS.md states; synced to every repo's `.githooks/` and activated via `core.hooksPath`. |
+| `.githooks/` | Symlink → `githooks/` so the sources are live here without duplication. |
+| `policy/` | **Policy guard — source of truth.** `guard.mjs` (all rules) plus `adapters/` for Claude Code and Codex; the opencode adapter is `opencode/plugin/enkinex-guard.js`. Synced to `.agents/policy/`, `.claude/settings.json`, `.codex/hooks.json`. See `policy/README.md`. |
+| `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
+| `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
+| `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 205 deterministic cases, no token cost. `just test`; gated by `just check`. |
+| `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
+| `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing. See `mcp/README.md`. |
+| `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |
+| `scripts/ledger.sh` | Cost snapshot writer; warns while the OpenRouter key has no spend limit. |
+| `scripts/opencode-headless.sh` | Launcher for unattended runs (`just headless <repo> …`); documents why the headless profile exists and how it is delivered. |
+| `opencode/` | Executable-artefact sources: `agent/` (10 agents — 5 github workflow + 5 loop), `command/` (`/ci-*` chain); later `tools/`, `plugin/`, `skills/` (loop.md Phase 4). Synced to siblings' `.opencode/`. Note `tools` is plural: opencode never reads `.opencode/tool`. |
+| `.opencode/` | **Symlinks only** (`agent`, `command` → `../opencode/…`) so the sources are live in this repo without duplication. |
+| `plan/` | Plans: `opencode/loop.md` (v0.2.0, Phases 0–7 — complete, awaiting PR landing), `opencode/harness-and-dogfooding.md` (successor: org governance & branch protection → harness pending tasks → OKF dogfooding → Databricks dogfooding), `opencode/benchmark-enkinex-databricks.md` (T0–T8). Finished plans move to `plan/done/`. |
+| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution. |
+| `discovery/` | Discovery docs feeding plans; latest: `opencode/migration.md`. |
+| `.prompts/` | Legacy YAML task specs — porting source for `.opencode/command/` and `loop/tasks/` (loop.md Phases 2/5); removed once ported. |
+
+## Workflow (locked)
+
+1. `git fetch origin`, confirm sync with `main`, branch
+   `<type>/<short-slug>`.
+2. Work; commit with `<type>: <imperative ≤72>` + `Refs:` footer
+   (plan section) at the end of the iteration.
+3. **Never push or open a PR unless explicitly asked.** Squash-merge +
+   `--delete-branch` is the only merge path.
+4. GitHub via `gh` CLI only — no MCP, no Actions, no Issues/Projects
+   (ADR-0002). Permission posture is mechanical in `opencode.jsonc`.
+
+## Current state
+
+- v0.2.0 — opencode + OpenRouter agent loop (`plan/opencode/loop.md`),
+  Phases 0–6 done. Phase 7 dogfooding is partial: proven against
+  `enkinex-okf`, blocked in `enkinex-odcs` by a loop hang tracked in
+  `plan/opencode/harness-and-dogfooding.md` §2.1.
+- **This repository was recreated from a clean root commit on 2026-08-06**
+  and published. The previous forty-commit history carried agent-memory and
+  task-spec files describing a private system; the disposition is recorded in
+  the successor plan §1.3. Nothing of substance was lost — the decisions live
+  in `architecture/`, `plan/` and this file.
+- **Governance (successor plan Phase 1) is applied.** Four teams
+  (LibDev, KbDev, PlatformDev, WebDev) at `write`; `main` protected on every
+  public repo with merge restricted to the owner, code-owner review, linear
+  history and a required `test` check on all seven code repos; `v*` tags
+  protected; secret scanning and push protection on. Applied and drift-checked
+  by `governance/apply-governance.sh` in the private `enkinex-lab`.
+- Open: four adoption PRs await review; `enkinex-ossie` and the two tutorial
+  repos are not yet on the shared layer. `REPOS` in the Justfile is the
+  coverage list, and adding a repo to it turns `just check` red until that
+  repo is actually synced — so the two happen in one change, not two.
+- Known-open harness items are §2 of the successor plan: the odcs loop hang,
+  free-tier viability, agent-output evals, OpenRouter model-level fallback,
+  and the ledger's spend-limit check.
+- opencode is the primary agent runtime; Claude Code and Codex are supported
+  through pointer-only adapters that carry no rules of their own.
+
+<!-- BEGIN GENERATED: enkinex-aiops/AGENTS.shared.md — do not edit here; run "just sync-opencode" in enkinex-aiops -->
+## Shared enkinex rules
+
+> GENERATED from enkinex-aiops `AGENTS.shared.md` (ADR-0005). Do not edit
+> this block in a sibling repo — change the source in enkinex-aiops and run
+> `just sync-opencode`.
+
+Enkinex is an open-source **Semantic & Governance as Code** project: KCL
+libraries that implement open standards (ODCS, ODPS, OKF) and platform
+configuration surfaces (Databricks Asset Bundles) as typed, modular code.
+
+### Git workflow (locked)
+
+- Branch slug: `<type>/<short-slug>`; `type` ∈ `feat · fix · refactor ·
+  docs · chore · test · infra · proj`; slug kebab-case, ≤6 words,
+  imperative (e.g. `feat/output-port-retry-policy`).
+- Commits: Conventional Commits subset `<type>: <imperative ≤72>`,
+  `Refs:` footer pointing at the plan section delivered, no `Closes:`/
+  `Fixes:`/`Resolves:` (there are no GitHub Issues).
+- **No repo-name scope.** A scope is optional and names a *module inside
+  this repo* (`catalog`, `quality`, `trust`, `githooks`), never the repo
+  itself: `feat(odcs):` inside enkinex-odcs says nothing the repository
+  does not already say. Package-name scopes are a monorepo device; these
+  are separate repos. The `commit-msg` hook rejects a redundant scope.
+- **Never push, merge, or open PRs unless the user explicitly asks.** The
+  iteration ends at a local commit. `gh` CLI is the only GitHub surface
+  (ADR-0002): no GitHub MCP, no Actions, no Issues/Projects/Releases.
+- Never force-push to `main`; never rewrite history.
+- Before any repo edit: `git fetch origin`, confirm sync with `main`,
+  create the branch. Commit at the end of the iteration.
+
+### Mechanical enforcement
+
+The rules above are enforced by git hooks in `.githooks/`, not by your
+compliance: `commit-msg` checks the subject grammar and the `Refs:` footer,
+`pre-commit` checks the enkinex remote and scans staged content for
+credentials, `pre-push` checks the branch slug and refuses direct pushes to
+`main` and history rewrites.
+
+A second layer, `.agents/policy/guard.mjs`, covers what git hooks cannot see:
+hook bypasses (`--no-verify`, `core.hooksPath` edits), `git add -A`, `gh pr
+merge`, and reads of credential paths. One script; opencode, Claude Code and
+Codex each call it through a pointer-only adapter.
+
+- **Never pass `--no-verify`.** If a hook refuses, fix the cause.
+- Stage explicit paths. `git add -A`, `git add .` and `git add -u` are denied.
+- Hooks are inert until a clone is pointed at them. If
+  `git config --get core.hooksPath` is empty, run
+  `git config core.hooksPath .githooks` before committing.
+- Unattended runs use the headless profile (`opencode.headless.json`), where
+  push, rebase, PR creation and PR merge are denied outright rather than
+  prompted. Launch through `scripts/opencode-headless.sh` in enkinex-aiops.
+
+### Project lifecycle
+
+Repos plan at the root level: `plan/` (active plans; finished work moves
+to `plan/done/`), `discovery/` (analysis feeding plans), `architecture/`
+(ADRs). ADRs record one-way decisions only — procedural workflows are
+defined as executable artefacts (agents, commands, loop tasks, plugin
+hooks), never as ADR prose (ADR-0004, executable governance). Commit
+`Refs:` footers point at the delivered `plan/` section.
+
+### Model tiers (OpenRouter)
+
+| Tier | Models | Use |
+|---|---|---|
+| Free | `:free` suffixed IDs | explore/triage, formatting, titles |
+| Mid | `moonshotai/kimi-k2`, `deepseek/deepseek-v3.2`, `google/gemini-3.5-flash` | code edits, docs, tests |
+| Frontier | `moonshotai/kimi-k3` (default), `anthropic/claude-opus-5`, `openai/gpt-5.6` family | plans, reviews, ADRs |
+
+Do not switch tiers silently; model pins change only via PR.
+
+### Code standards
+
+- KCL libraries: one module per concern, docstrings on every schema and
+  field (they feed `just docs`), `check` rules for enums/constraints,
+  `kcl vet` fixtures under `test/`. Gate: `just check` (fmt + lint + test).
+- Stage explicit paths only — never `git add -A` / `git add .`; skip
+  anything that looks like a secret.
+<!-- END GENERATED -->

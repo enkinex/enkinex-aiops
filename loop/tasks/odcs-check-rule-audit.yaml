@@ -1,0 +1,43 @@
+# STATUS: this spec currently HANGS in enkinex-odcs — step 1 produces no
+# output and the run must be killed, while the identical invocation
+# (OPENCODE_CONFIG_CONTENT=… opencode run --dir … --agent build-kcl "<same
+# prompt>") completes in ~30s standalone with correct output. Reproduces
+# under `just loop`, under `bash scripts/loop.sh`, on free and mid tier.
+# The same runner completes fine against enkinex-okf. Kept as the
+# reproducer — see plan/opencode/harness-and-dogfooding.md Phase 1.
+
+task: Audit enkinex-odcs check rules against the ODCS JSON schema and report gaps.
+repo: ../enkinex-odcs
+gate: just check
+retries: 1
+
+# Read-only audit: the deliverable is the report in the run output, reviewed by
+# a human before any of it becomes a change. Nothing is written, so the effect
+# check is disabled deliberately — see plan Phase 7A.
+expect:
+  changed: false
+  files: []
+
+steps:
+  # Mid tier, not free: explore-enkinex on the free model stalled past 10
+  # minutes on this prompt and on a broader one in enkinex-okf. See the plan.
+  - agent: build-kcl
+    prompt: |
+      Use glob to list the *.k files under quality/ and server/. Read
+      quality/operator.k only.
+
+      Answer in at most 12 lines: which properties in that file have a KCL
+      `check` rule, and which look like they constrain a value but have none?
+      Do not modify anything.
+
+  - agent: review-standard
+    prompt: |
+      A previous step reported:
+
+      ---
+      {{previous}}
+      ---
+
+      Verify those claims against odcs-json-schema-v3.1.0.json. State clearly
+      which are CONFIRMED and which are WRONG. Be sceptical: the previous step
+      ran on a small model. Write nothing to disk; reply only.

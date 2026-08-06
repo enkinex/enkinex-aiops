@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Shell|Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .agents/policy/guard.mjs",
+            "statusMessage": "enkinex policy check",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

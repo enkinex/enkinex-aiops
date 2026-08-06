@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# enkinex pre-commit hook — GENERATED from enkinex-aiops githooks/pre-commit.
+# Do not edit here; change the source and run `just sync-opencode`.
+#
+# Carries the two rules that prompt text proved unable to enforce: the enkinex
+# remote guard (a mid-tier model created a branch in a non-enkinex repo anyway,
+# even after the instruction was hardened — plan/opencode/loop.md Phase 2
+# status) and the staged-secret scan.
+set -euo pipefail
+
+fail() {
+    echo "enkinex pre-commit: $*" >&2
+    exit 1
+}
+
+# ── Remote guard (advisory here, enforced at push) ──────────────────────────
+# enkinex-odcs, enkinex-odps and enkinex-okf are public and take outside
+# contributions. A fork's origin is github.com/<contributor>/…, so BLOCKING on
+# a non-enkinex origin here would refuse every commit a forker makes — it would
+# turn a guard against agents straying into foreign repos into a wall against
+# the project's own contributors.
+#
+# The guard belongs where the risk actually is: pre-push checks the real push
+# URL, and .agents/policy/guard.mjs blocks `gh pr create` and `git push`
+# against a foreign origin. Committing locally in the wrong clone is
+# recoverable and leaks nothing, so here it only warns.
+if origin="$(git remote get-url origin 2>/dev/null)"; then
+    case "$origin" in
+        *github.com[:/]enkinex/*) : ;;
+        *) echo "enkinex pre-commit: note — origin is not under github.com/enkinex ($origin).
+  Fine in a fork. Pushing to a non-enkinex remote is blocked by pre-push." >&2 ;;
+    esac
+fi
+
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+[ -n "$staged" ] || exit 0
+
+# ── Secret-shaped paths ─────────────────────────────────────────────────────
+while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    case "$path" in
+        *.example|*.sample|*.template) continue ;;
+    esac
+    case "$path" in
+        *.pem|*.key|*.p12|*.pfx|*.keystore|*.jks|*id_rsa|*id_ed25519|*id_ecdsa)
+            fail "refusing to stage a key file: $path" ;;
+        .env|.env.*|*/.env|*/.env.*)
+            fail "refusing to stage an environment file: $path" ;;
+    esac
+done <<<"$staged"
+
+# ── Secret-shaped content in the staged diff ────────────────────────────────
+# Patterns are written so they do not match their own source text, which is why
+# this file can be committed through its own hook.
+patterns='-----BEGIN [A-Z ]*PRIVATE KEY-----'
+patterns="$patterns|AKIA[0-9A-Z]{16}"
+patterns="$patterns|ghp_[A-Za-z0-9]{36}"
+patterns="$patterns|github_pat_[A-Za-z0-9_]{22,}"
+patterns="$patterns|sk-[A-Za-z0-9]{32,}"
+patterns="$patterns|xox[baprs]-[A-Za-z0-9-]{10,}"
+# Do not add a literal PEM banner here (e.g. the OPENSSH one): the first
+# pattern already covers every key type, and a literal copy would be matched
+# by it, making this file unable to pass its own hook.
+
+# `-e` is required: the pattern starts with a dash and would otherwise be
+# parsed as grep options, silently disabling the whole scan.
+hit="$(git diff --cached -U0 | grep -E -e '^\+[^+]' | grep -Eo -e "$patterns" | head -n1 || true)"
+if [ -n "$hit" ]; then
+    fail "staged diff contains something shaped like a credential.
+  matched: ${hit:0:24}…
+  Remove it, rotate the value, and stage explicit paths only."
+fi
+
+exit 0

@@ -1,0 +1,39 @@
+task: Record which OKF v0.2 bundle-level features enkinex-okf does not model.
+repo: ../enkinex-okf
+gate: just check
+retries: 1
+
+# The gate cannot tell "task done" from "agent gave up" — it passes on an
+# untouched tree. Naming the artefact is what makes the run verifiable.
+expect:
+  changed: true
+  files:
+    - discovery/okf/bundle-gaps.md
+
+steps:
+  # Free tier, deliberately narrow. A broad "read every module" prompt did not
+  # finish here in 10 minutes on the free model — see plan/opencode/loop.md
+  # Phase 5 status.
+  - agent: explore-enkinex
+    prompt: |
+      Use glob to list the *.k files in this repo. Do not read them.
+
+      Then answer in your reply only, in at most 15 lines: of these five OKF
+      v0.2 features — bundle tree (§3), index.md (§8), log.md (§9),
+      cross-linking (§6), directory-level conformance (§11) — which are
+      modelled by a KCL schema here, and which are not? Judge from the file
+      names and the fact that this library types frontmatter only.
+
+  - agent: docs-writer
+    prompt: |
+      Write discovery/okf/bundle-gaps.md. Create the directory.
+
+      Use this inventory from the previous step:
+
+      ---
+      {{previous}}
+      ---
+
+      Structure: a Status/Date/Feeds header block, one paragraph of purpose, a
+      table (feature | spec section | modelled here? | note), and a short
+      "What this implies for v0.3" section. Keep it under 40 lines.

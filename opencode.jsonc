@@ -1,0 +1,159 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Enkinex shared opencode baseline (ADR-0005).
+  // Source of truth: enkinex-aiops, repo root `opencode.jsonc`.
+  // In SIBLING repos this is a GENERATED file — do not edit there;
+  // change the source and run `just sync-opencode` in enkinex-aiops.
+  // Repo-specific overrides: `.opencode/opencode.jsonc` (loaded after this
+  // file, so it wins — verified against opencode 1.18.11 config loading).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── Models (OpenRouter, 3-tier — see plan/opencode/loop.md §5) ──────────
+  // Default session model: mid tier. Frontier agents (plan/review) pin
+  // their own model in agent frontmatter. Re-pin only via PR per ADR-0002.
+  // NOTE: free-tier models rate-limit upstream without warning
+  // (observed 2026-08-03 with gemma-4-31b-it:free). nemotron nano and
+  // inclusionai/ling-3.0-flash:free responded reliably in smoke tests.
+  "model": "openrouter/moonshotai/kimi-k2",
+  "small_model": "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+
+  // ── Instructions ────────────────────────────────────────────────────────
+  // No `instructions` list: the shared enkinex rules live inside the repo-root
+  // AGENTS.md as a generated block (source: enkinex-aiops AGENTS.shared.md,
+  // installed by `just sync-opencode`). AGENTS.md auto-loads here, is read
+  // natively by Codex, and is imported by Claude Code through CLAUDE.md — so
+  // one file governs all three harnesses instead of an opencode-only config
+  // indirection.
+
+  // ── Language servers (loop.md Phase 3) ──────────────────────────────────
+  // An `lsp` object enables the built-ins AND applies these overrides, so the
+  // website keeps its TS/TSX server. KCL lives in the shared baseline rather
+  // than per-repo overlays: four of six repos are KCL libraries, and the
+  // `extensions` gate means a repo with no .k files never spawns it.
+  // `kcl-language-server` with no subcommand speaks LSP over stdio.
+  "lsp": {
+    "kcl": {
+      "command": [
+        "kcl-language-server"
+      ],
+      "extensions": [
+        ".k"
+      ]
+    }
+  },
+
+  // ── MCP servers (loop.md Phase 3; ADR-0002 bounds) ──────────────────────
+  // ADR-0002 denies GitHub MCP on token-economy grounds: a server's tool
+  // catalog is ambient per-session cost. That argument applies to every MCP
+  // server, so placement follows the catalog size and the breadth of use:
+  //
+  //   context7  — 2 tools, useful in every repo (KCL, ODCS/ODPS/OKF specs,
+  //               Docusaurus) → shared baseline.
+  //   playwright — ~25 tools, useful only for website e2e → declared in
+  //               enkinex-org-website/.opencode/opencode.jsonc, not here.
+  //
+  // No GitHub MCP (ADR-0002): PR reads stay bounded `gh --json --jq` calls.
+  // context7 works unauthenticated at basic rate limits; add an
+  // "Authorization: Bearer …" header from context7.com/dashboard if throttled.
+  // `enkinex` is the local server carrying Phase 4's three tools. Its catalog
+  // is derived from the repo it runs in — no kcl.mod means no KCL tools, no
+  // plan/ means no project_state — so an unrelated repo pays nothing.
+  "mcp": {
+    "enkinex": {
+      "type": "local",
+      "command": [
+        "node",
+        ".agents/mcp/enkinex.mjs"
+      ],
+      "enabled": true
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    }
+  },
+
+  // ── Permission posture (ADR-0002, allow/ask/deny) ───────────────────────
+  // MATCHING: last matching rule wins. Order matters — the catch-all comes
+  // first, specific allows next, and denies last so they cannot be overridden.
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.pem": "deny",
+      "*.key": "deny",
+      "*credentials*": "deny",
+      "*secret*": "deny"
+    },
+    "edit": "allow",
+    "write": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "webfetch": "allow",
+    "bash": {
+      "*": "ask",
+
+      // read-only git — zero prompts
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git branch*": "allow",
+      "git remote*": "allow",
+      "git fetch*": "allow",
+
+      // KCL toolchain — zero prompts
+      "kcl *": "allow",
+
+      // just recipes — enumerated, never `just *`. A Justfile recipe executes
+      // arbitrary shell from inside the repo, so a blanket allow would grant
+      // everything the rules below deny.
+      "just": "allow",
+      "just --list*": "allow",
+      "just init*": "allow",
+      "just fmt*": "allow",
+      "just lint*": "allow",
+      "just test*": "allow",
+      "just docs*": "allow",
+      "just check*": "allow",
+      "just verify-opencode*": "allow",
+
+      // read-only GitHub — zero prompts
+      "gh pr view*": "allow",
+      "gh pr list*": "allow",
+      "gh pr checks*": "allow",
+      "gh pr diff*": "allow",
+      "gh repo view*": "allow",
+      "gh auth status*": "allow",
+
+      // mutations — explicit human confirmation
+      "git add *": "ask",
+      "git commit*": "ask",
+      "git push*": "ask",
+      "git checkout*": "ask",
+      "gh pr create*": "ask",
+      "gh pr merge*": "ask",
+
+      // destructive git — denied outright. `AGENTS.md` says never force-push
+      // and never rewrite history; `ask` gave that rule no mechanical backing
+      // and collapses into an allow under headless `--auto`.
+      "git push --force*": "deny",
+      "git push -f*": "deny",
+      "git reset --hard*": "deny",
+      "git rebase*": "ask",
+
+      // locked-out GitHub surfaces (ADR-0002: no Issues/Projects/Actions/Releases)
+      "gh issue*": "deny",
+      "gh project*": "deny",
+      "gh workflow*": "deny",
+      "gh run*": "deny",
+      "gh release*": "deny",
+      "gh secret*": "deny",
+      "gh variable*": "deny"
+    }
+  }
+}

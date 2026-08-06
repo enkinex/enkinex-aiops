@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# enkinex pre-push hook — GENERATED from enkinex-aiops githooks/pre-push.
+# Do not edit here; change the source and run `just sync-opencode`.
+#
+# The last mechanical gate before work leaves the machine: remote guard, branch
+# slug grammar, no direct pushes to main, no history rewrites.
+#
+# Deliberately does NOT run `just check`. Pushes are rare (never without an
+# explicit human request), the gate already runs inside the loop, and a hook
+# slow enough to be annoying is a hook that gets bypassed with --no-verify.
+set -euo pipefail
+
+TYPES='feat|fix|refactor|docs|chore|test|infra|proj'
+ZERO='0000000000000000000000000000000000000000'
+
+fail() {
+    echo "enkinex pre-push: $*" >&2
+    exit 1
+}
+
+remote_url="${2:-}"
+
+# Remote guard. The threat is enkinex work pushed to an unrelated repository —
+# the Phase 2 case where an agent operated in a scratch clone. A contributor's
+# FORK is not that: enkinex-odcs, enkinex-odps and enkinex-okf are public, and
+# github.com/<contributor>/enkinex-odcs is exactly where a fork's push belongs.
+# So the guard matches on the repository NAME, and only the enkinex org gets an
+# unconditional pass.
+repo_name="$(basename "$(git rev-parse --show-toplevel)")"
+remote_repo="$(basename "${remote_url%.git}")"
+
+case "$remote_url" in
+    "") fail "no remote URL supplied by git." ;;
+    *github.com[:/]enkinex/*) : ;;
+    *)
+        if [ "$remote_repo" = "$repo_name" ]; then
+            echo "enkinex pre-push: pushing to a fork ($remote_url), not the enkinex remote." >&2
+        else
+            fail "push target is neither an enkinex remote nor a fork of this repo.
+  repo:   $repo_name
+  remote: $remote_url"
+        fi
+        ;;
+esac
+
+while read -r _local_ref local_sha remote_ref remote_sha; do
+    # Branch deletion: nothing to validate.
+    [ "$local_sha" = "$ZERO" ] && continue
+
+    branch="${remote_ref#refs/heads/}"
+
+    if [ "$branch" = "main" ]; then
+        fail "direct pushes to main are not allowed.
+  Land through a squash-merged PR (AGENTS.md, workflow step 3)."
+    fi
+
+    if ! printf '%s' "$branch" | grep -Eq "^(${TYPES})/[a-z0-9][a-z0-9-]*$"; then
+        fail "branch '$branch' does not match the locked slug grammar.
+  Expected <type>/<short-slug> (kebab-case), type one of: ${TYPES//|/, }"
+    fi
+
+    # A remote head that is not an ancestor of what we are pushing means the
+    # remote history is being rewritten.
+    if [ "$remote_sha" != "$ZERO" ] &&
+        ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        fail "refusing a non-fast-forward push to '$branch' (history rewrite)."
+    fi
+done
+
+exit 0

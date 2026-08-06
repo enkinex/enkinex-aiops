@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PROJECT_DIR}/.agents/policy/guard.mjs",
+            "statusMessage": "enkinex policy check",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

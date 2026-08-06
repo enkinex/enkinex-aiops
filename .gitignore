@@ -1,0 +1,19 @@
+# MacOS
+.DS_Store
+
+# IDEs
+.idea
+.vscode
+
+# Node (loop runner, Phase 5)
+node_modules/
+
+# Never stageable in a public repo — the pre-commit scan catches patterns,
+# this catches the file.
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json

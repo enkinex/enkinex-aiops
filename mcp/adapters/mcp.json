@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "enkinex": {
+      "command": "node",
+      "args": [".agents/mcp/enkinex.mjs"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
