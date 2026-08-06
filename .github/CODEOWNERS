@@ -1,0 +1,5 @@
+# These owners are requested for review on any pull request.
+# PlatformDev is a one-person team, so the owner is the only code owner —
+# which means PRs here land through the owner's admin bypass. That is the
+# deliberate consequence of the D2 decision, not an accident.
+* @rodrigoalvamat
