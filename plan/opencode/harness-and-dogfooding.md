@@ -474,9 +474,23 @@ because each has a defensible answer in both directions:
   to one person and code-owner review required, turning it on means the owner
   cannot land anything while the contributor is unavailable. It is the single
   deliberate bypass in the model and should be named as such, not discovered.
-- **Signed commits** (`required_signatures`) — currently off. Turning it on
-  requires every agent-authored commit to be signed; verify the loop's commit
-  path can sign before requiring it, or it will be bypassed within a week.
+- **Signed commits — DECIDED 2026-08-06: required on all eleven public
+  repos.** The concern recorded here, that every agent-authored commit would
+  have to be signed, was misplaced. Branch protection governs what lands on
+  `main`, and under squash-merge that is a commit **GitHub creates and signs
+  itself** — every commit on every `main` already verified before the rule
+  was turned on. Unsigned commits on feature branches are untouched, so the
+  loop's commit path needed no change.
+
+  `required_signatures` is a separate sub-resource (`POST
+  …/branches/{branch}/protection/required_signatures`) that the protection
+  `PUT` neither accepts nor returns, so it needs its own step and its own
+  verification — the fourth setting this phase found where reading the
+  obvious object proves nothing.
+
+  What it rejects is a command-line merge of unsigned commits. That is the
+  intent, not a side effect: PR merges through GitHub are the only sanctioned
+  path anyway.
 - **GitHub Issues** — the shared rules say "there are no GitHub Issues" and
   ban `Closes:` footers, yet every public repo has `has_issues: true` and
   ships an `ISSUE_TEMPLATE/`. Public repos with outside contributors make
@@ -528,6 +542,7 @@ audit run. The applier is idempotent, so re-running it is the drift check.
 | 2FA | Required org-wide, 2026-08-06. Both members were already enrolled (`?filter=2fa_disabled` returned empty), so enforcement removed nobody. A **third** API-accepted-and-ignored field, set by hand under Authentication security |
 | Publication | `enkinex-aiops` recreated from a clean root and published; `enkinex-knowledge-base` created public and empty. Both protected. The applier now discovers public repos, having silently missed both when the list was hardcoded |
 | Shared layer | Live in all six repos — the five adoption PRs merged 2026-08-06 |
+| Signed commits | Required on all eleven public repos, 2026-08-06. Safe because GitHub signs the squash commits it creates; a command-line merge of unsigned commits is rejected, which is the intent |
 | History scans | All **10** public repos scanned 2026-08-06 by `enkinex-lab/governance/scan-history.sh` across every commit on every branch and tag: no credentials, no secret-shaped assignments, no `.env`/key files ever added, no local paths or personal emails. GitHub secret scanning reports 0 alerts on each. This closes the retrospective owed on `enkinex-databricks` and `enkinex-odps-tutorial` |
 | Secret scanning + push protection | Enabled on all 8 public repos. The org `*_for_new_repositories` flags do **not** retro-apply, so this needed a per-repo `PATCH`; §1.8's backstop is now genuinely on |
 
@@ -548,8 +563,8 @@ audit run. The applier is idempotent, so re-running it is the drift check.
 4. Dependabot **security updates** (fix PRs) are off on all public repos.
    Alerts are on. A no-op for the KCL repos — Dependabot does not parse
    `kcl.mod` — so it matters only for `enkinex-org-website`.
-5. §1.9 open items: signed commits, the Issues contradiction, ADR-0006, plan
-   tier.
+5. §1.9 open items: the Issues contradiction and ADR-0006. Signed commits
+   were decided and applied on 2026-08-06.
 
 ### Acceptance
 
