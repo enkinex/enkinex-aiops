@@ -528,6 +528,7 @@ audit run. The applier is idempotent, so re-running it is the drift check.
 | 2FA | Required org-wide, 2026-08-06. Both members were already enrolled (`?filter=2fa_disabled` returned empty), so enforcement removed nobody. A **third** API-accepted-and-ignored field, set by hand under Authentication security |
 | Publication | `enkinex-aiops` recreated from a clean root and published; `enkinex-knowledge-base` created public and empty. Both protected. The applier now discovers public repos, having silently missed both when the list was hardcoded |
 | Shared layer | Live in all six repos — the five adoption PRs merged 2026-08-06 |
+| History scans | All **10** public repos scanned 2026-08-06 by `enkinex-lab/governance/scan-history.sh` across every commit on every branch and tag: no credentials, no secret-shaped assignments, no `.env`/key files ever added, no local paths or personal emails. GitHub secret scanning reports 0 alerts on each. This closes the retrospective owed on `enkinex-databricks` and `enkinex-odps-tutorial` |
 | Secret scanning + push protection | Enabled on all 8 public repos. The org `*_for_new_repositories` flags do **not** retro-apply, so this needed a per-repo `PATCH`; §1.8's backstop is now genuinely on |
 
 **Still open, in rough priority order:**
@@ -540,8 +541,6 @@ audit run. The applier is idempotent, so re-running it is the drift check.
    served in the site's JavaScript), and no prompts, plans or LLM-related
    content. What remains is editorial: 8 pages are `TodoBanner`
    placeholders.
-2. Retrospective credential scans on `enkinex-databricks` and
-   `enkinex-odps-tutorial`, both published before a scan was run (1.3).
 3. `CODEOWNERS` and CI for `enkinex-aiops`; `CODEOWNERS` for
    `enkinex-knowledge-base`. Note aiops CI runs `just test`, not `just
    check` — `verify-opencode` reads sibling clones from `../`, which do not
