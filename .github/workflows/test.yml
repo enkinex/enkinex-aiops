@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      # `just test` rather than `just check`: check also runs
+      # verify-opencode, which reads the sibling clones from ../ to compare
+      # the distributed shared layer. Those do not exist in a single-repo
+      # checkout, so it would fail for a reason that says nothing about this
+      # commit. Drift across siblings is caught locally and by each sibling's
+      # own gate.
+      - name: Run the golden set
+        run: just test

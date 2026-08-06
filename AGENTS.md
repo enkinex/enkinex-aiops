@@ -12,10 +12,11 @@ every sibling; it writes no product code itself.
 | [enkinex-odps](../enkinex-odps) | KCL library for the Open Data Product Standard (ODPS v1.0.0) — published |
 | [enkinex-okf](../enkinex-okf) | KCL library for Google's Open Knowledge Format (OKF v0.2) — `v0.2-draft`; frontmatter families only |
 | [enkinex-databricks](../enkinex-databricks) | KCL library for Databricks Asset Bundles — v0.1.0 scaffold; benchmark vehicle of the opencode migration |
-| [enkinex-ossie](../enkinex-ossie) | KCL library for Apache Ossie — public; **not yet on the shared layer** |
+| [enkinex-ossie](../enkinex-ossie) | KCL library for Apache Ossie (0.2.0.dev0) — earliest in its lifecycle; `SemanticModel` and one field so far |
+| [enkinex-knowledge-base](../enkinex-knowledge-base) | KbDev. Public and empty; the OKF corpus is built in Phase 3 of the successor plan |
 | [enkinex-odcs-tutorial](../enkinex-odcs-tutorial) | Worked ODCS example, pinned to the library version it teaches |
 | [enkinex-odps-tutorial](../enkinex-odps-tutorial) | Worked ODPS example, pinned to the library version it teaches |
-| [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Private until its Cloudflare credential review |
+| [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Private; its pre-publication scan found no Cloudflare or analytics secrets |
 | [.github](../.github) | Org profile. WebDev; protection but no CI — a profile README has nothing to gate |
 
 ## Repo map
@@ -66,18 +67,22 @@ every sibling; it writes no product code itself.
 - **This repository was recreated from a clean root commit on 2026-08-06**
   and published. The previous forty-commit history carried agent-memory and
   task-spec files describing a private system; the disposition is recorded in
-  the successor plan §1.3. Nothing of substance was lost — the decisions live
-  in `architecture/`, `plan/` and this file.
-- **Governance (successor plan Phase 1) is applied.** Four teams
-  (LibDev, KbDev, PlatformDev, WebDev) at `write`; `main` protected on every
-  public repo with merge restricted to the owner, code-owner review, linear
-  history and a required `test` check on all seven code repos; `v*` tags
-  protected; secret scanning and push protection on. Applied and drift-checked
-  by `governance/apply-governance.sh` in the private `enkinex-lab`.
-- Open: four adoption PRs await review; `enkinex-ossie` and the two tutorial
-  repos are not yet on the shared layer. `REPOS` in the Justfile is the
-  coverage list, and adding a repo to it turns `just check` red until that
-  repo is actually synced — so the two happen in one change, not two.
+  the successor plan §1.3. The decisions survive in `architecture/`, `plan/`
+  and this file; the `Refs:` chain does not.
+- **Successor-plan Phase 1 is applied.** Ten public repositories, all with
+  `main` protected: merge restricted, code-owner review, linear history, and
+  a required `test` check on the seven that have code. `v*` tags protected on
+  the versioned libraries and tutorials; secret scanning, push protection and
+  Dependabot alerts on; 2FA required org-wide; four teams at `write`. Applied
+  and drift-checked by `governance/apply-governance.sh` in the private
+  `enkinex-lab`, which discovers public repos rather than listing them.
+- **The shared layer is live in all six repos** — the five library and
+  website adoption PRs merged 2026-08-06. `enkinex-ossie` joined last: it had
+  never been in `REPOS`, so the sync had never targeted it.
+- Open: `enkinex-org-website` is still private (scanned clean, publication is
+  a decision not a blocker); `enkinex-knowledge-base` is empty until Phase 3;
+  retrospective credential scans are owed on `enkinex-databricks` and
+  `enkinex-odps-tutorial`, both published before a scan was run.
 - Known-open harness items are §2 of the successor plan: the odcs loop hang,
   free-tier viability, agent-output evals, OpenRouter model-level fallback,
   and the ledger's spend-limit check.

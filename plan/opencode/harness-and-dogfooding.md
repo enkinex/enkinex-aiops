@@ -524,23 +524,32 @@ audit run. The applier is idempotent, so re-running it is the drift check.
 | Branch protection | All 8 public repos on the 1.5 template, merge restricted, linear history on |
 | CODEOWNERS | Now present in all 8 — five added by PR, since the applier does not commit |
 | Tag protection | `v*` deletion and non-fast-forward blocked on the 7 versioned repos, no bypass |
-| Status checks | `test` required on all 7 code repos. CI added to databricks, ossie and both tutorials by PR; `.github` deliberately has none — a profile README has nothing to gate |
+| Status checks | `test` required on all 7 code repos. CI added to databricks, ossie and both tutorials by PR; `.github` and the empty knowledge base deliberately have none |
+| 2FA | Required org-wide, 2026-08-06. Both members were already enrolled (`?filter=2fa_disabled` returned empty), so enforcement removed nobody. A **third** API-accepted-and-ignored field, set by hand under Authentication security |
+| Publication | `enkinex-aiops` recreated from a clean root and published; `enkinex-knowledge-base` created public and empty. Both protected. The applier now discovers public repos, having silently missed both when the list was hardcoded |
+| Shared layer | Live in all six repos — the five adoption PRs merged 2026-08-06 |
 | Secret scanning + push protection | Enabled on all 8 public repos. The org `*_for_new_repositories` flags do **not** retro-apply, so this needed a per-repo `PATCH`; §1.8's backstop is now genuinely on |
 
 **Still open, in rough priority order:**
 
-1. `enkinex-aiops`: clean root commit, scan, flip, protect (1.3).
-2. `enkinex-org-website`: Cloudflare-focused scan, flip, protect (1.3).
-3. `enkinex-knowledge-base`: create, protect (1.3).
-4. Retrospective credential scans on `enkinex-databricks` and
-   `enkinex-odps-tutorial`, published without one (1.3).
-5. 2FA — needs the contributor enrolled first (1.4).
-6. Dependabot **security updates** (fix PRs) are off on all 8. Alerts are on.
-   A no-op for the KCL repos — Dependabot does not parse `kcl.mod` — so it
-   matters only for `enkinex-org-website`, best switched on when it flips.
-7. The five adoption PRs, now subject to rules that did not exist when they
-   were opened, and to `strict` checks that require them to be up to date.
-8. §1.9 open items: signed commits, the Issues contradiction, ADR-0006, plan
+1. `enkinex-org-website`: publication is now a decision, not a blocker. Its
+   2026-08-06 scan found no Cloudflare credentials (`wrangler.jsonc` carries
+   no `account_id`, `zone_id` or token; deployment is a local `wrangler
+   deploy` with no Actions secrets, environments, deploy keys or webhooks),
+   no analytics secret (a GA4 measurement ID is public by design and already
+   served in the site's JavaScript), and no prompts, plans or LLM-related
+   content. What remains is editorial: 8 pages are `TodoBanner`
+   placeholders.
+2. Retrospective credential scans on `enkinex-databricks` and
+   `enkinex-odps-tutorial`, both published before a scan was run (1.3).
+3. `CODEOWNERS` and CI for `enkinex-aiops`; `CODEOWNERS` for
+   `enkinex-knowledge-base`. Note aiops CI runs `just test`, not `just
+   check` — `verify-opencode` reads sibling clones from `../`, which do not
+   exist in a single-repo Actions checkout.
+4. Dependabot **security updates** (fix PRs) are off on all public repos.
+   Alerts are on. A no-op for the KCL repos — Dependabot does not parse
+   `kcl.mod` — so it matters only for `enkinex-org-website`.
+5. §1.9 open items: signed commits, the Issues contradiction, ADR-0006, plan
    tier.
 
 ### Acceptance
