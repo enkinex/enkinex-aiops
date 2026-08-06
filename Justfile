@@ -3,7 +3,7 @@
 # Sibling repos receiving the shared layer (ADR-0005). enkinex-aiops is not
 # in this list: it is synced separately by the sync-self step below, because
 # its opencode.jsonc and AGENTS.shared.md are the sources, not copies.
-REPOS := "enkinex-odcs enkinex-odps enkinex-org-website enkinex-databricks enkinex-okf"
+REPOS := "enkinex-odcs enkinex-odps enkinex-org-website enkinex-databricks enkinex-okf enkinex-ossie"
 
 # Directories under opencode/ distributed to each repo's .opencode/.
 # NOTE: opencode discovers custom tools at .opencode/tools (plural only) —
