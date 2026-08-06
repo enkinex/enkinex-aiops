@@ -1,0 +1,189 @@
+#!/usr/bin/env node
+// enkinex policy guard — GENERATED from enkinex-aiops policy/guard.mjs.
+// Do not edit here; change the source and run `just sync-opencode`.
+//
+// One policy, three harnesses. Reads a PreToolUse-shaped JSON payload on
+// stdin and writes a decision on stdout, in a form both Claude Code and Codex
+// understand; the opencode plugin adapter calls the same script and turns a
+// deny into a thrown error.
+//
+// SCOPE — this covers what .githooks/ structurally cannot see:
+//
+//   * hook bypasses (--no-verify, core.hooksPath edits, deleting .githooks).
+//     A hook cannot defend itself, which is what makes this the highest-value
+//     rule here: without it, every git-level guarantee is one flag deep.
+//   * commands that never reach git at all (gh pr merge, gh pr create).
+//   * the shape of a command rather than its result — `git add -A` is invisible
+//     to pre-commit, which only ever sees the index that resulted.
+//   * reads of credential paths, which opencode denies in config but Claude
+//     Code and Codex do not.
+//
+// Anything enforceable at the git layer belongs in .githooks/ instead: it binds
+// humans too, and it cannot be skipped by using a different agent.
+
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+
+const ENKINEX_REMOTE = /github\.com[:/]enkinex\//;
+
+const SECRET_PATH =
+  /(^|\/)\.env(\.|$)|\.(pem|key|p12|pfx|keystore|jks)$|(^|\/)id_(rsa|ed25519|ecdsa)$/i;
+const SECRET_PATH_EXEMPT = /\.(example|sample|template)$/i;
+
+// ── helpers ────────────────────────────────────────────────────────────────
+const tokens = (cmd) => cmd.trim().split(/\s+/);
+
+/** Short-flag clusters mean `-nm` counts as `-n`. */
+const hasShortFlag = (cmd, letter) =>
+  tokens(cmd).some((t) => /^-[a-zA-Z]+$/.test(t) && t.slice(1).includes(letter));
+
+const hasFlag = (cmd, flag) => tokens(cmd).includes(flag);
+
+/** Matches the command and any `&&`/`;`/`|` chained segment of it. */
+const segments = (cmd) =>
+  cmd
+    .split(/&&|\|\||;|\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const startsWith = (seg, prefix) =>
+  seg === prefix || seg.startsWith(prefix + " ");
+
+// ── rules ──────────────────────────────────────────────────────────────────
+// Each returns a reason string to deny, or null to allow.
+const BASH_RULES = [
+  {
+    id: "hook-bypass-flag",
+    check: (s) =>
+      (startsWith(s, "git commit") || startsWith(s, "git push")) &&
+      (hasFlag(s, "--no-verify") || hasShortFlag(s, "n"))
+        ? "--no-verify skips the enkinex git hooks. If a hook refuses, fix the cause rather than bypassing the check."
+        : null,
+  },
+  {
+    id: "hook-path-tamper",
+    check: (s) =>
+      /git\s+config\s+(--\S+\s+)*core\.hooksPath/.test(s)
+        ? "core.hooksPath is what makes the enkinex hooks active. Changing it from an agent disables every git-level guarantee."
+        : null,
+  },
+  {
+    id: "hook-removal",
+    check: (s) =>
+      /\b(rm|mv|chmod)\b[^|]*\.githooks\b/.test(s)
+        ? "refusing to remove, move or unset the executable bit on .githooks/."
+        : null,
+  },
+  {
+    id: "implicit-staging",
+    check: (s) => {
+      if (!startsWith(s, "git add")) return null;
+      const args = tokens(s).slice(2);
+      const implicit = args.some(
+        (a) => a === "." || a === "-A" || a === "--all" || a === "-u" || a === ":/",
+      );
+      return implicit || args.length === 0
+        ? "stage explicit paths only — never `git add -A`, `git add .` or `git add -u`. Naming the paths is how an unrelated or secret-shaped file avoids being swept into a commit."
+        : null;
+    },
+  },
+  {
+    id: "pr-merge",
+    check: (s) =>
+      startsWith(s, "gh pr merge")
+        ? "landing a PR is a human action in v0.2.0 (ADR-0002, plan/opencode/loop.md §8.3). Ask the user to merge."
+        : null,
+  },
+  {
+    id: "destructive-git",
+    check: (s) => {
+      if (startsWith(s, "git push") && (hasFlag(s, "--force") || hasShortFlag(s, "f")))
+        return "force-pushing rewrites published history.";
+      if (startsWith(s, "git reset") && hasFlag(s, "--hard"))
+        return "`git reset --hard` discards uncommitted work irrecoverably.";
+      if (startsWith(s, "git clean") && hasShortFlag(s, "f"))
+        return "`git clean -f` deletes untracked files irrecoverably.";
+      return null;
+    },
+  },
+  {
+    id: "remote-guard",
+    check: (s, ctx) => {
+      if (!/^(gh\s|git\s+push\b)/.test(s)) return null;
+      if (!/^gh\s+(pr|repo|release|api)\b/.test(s) && !startsWith(s, "git push")) return null;
+      const origin = originOf(ctx.cwd);
+      if (origin === null) return null; // no remote: a local scratch tree
+      return ENKINEX_REMOTE.test(origin)
+        ? null
+        : `origin is not under github.com/enkinex (${origin}).`;
+    },
+  },
+];
+
+function originOf(cwd) {
+  try {
+    return execFileSync("git", ["remote", "get-url", "origin"], {
+      cwd: cwd || process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function evaluate(payload) {
+  const tool = payload.tool_name ?? payload.toolName ?? payload.tool ?? "";
+  const input = payload.tool_input ?? payload.toolInput ?? payload.args ?? {};
+  const cwd = payload.cwd ?? payload.directory ?? process.cwd();
+
+  if (/^bash$/i.test(tool) || /^shell$/i.test(tool)) {
+    const command = input.command ?? input.cmd ?? "";
+    if (!command) return null;
+    for (const seg of segments(command)) {
+      for (const rule of BASH_RULES) {
+        const reason = rule.check(seg, { cwd });
+        if (reason) return `[${rule.id}] ${reason}`;
+      }
+    }
+    return null;
+  }
+
+  if (/^(read|edit|write|multiedit|notebookedit)$/i.test(tool)) {
+    const path = input.file_path ?? input.filePath ?? input.path ?? "";
+    if (path && SECRET_PATH.test(path) && !SECRET_PATH_EXEMPT.test(path)) {
+      return `[secret-path] ${path} is a credential-shaped path and is not readable or writable by an agent.`;
+    }
+  }
+
+  return null;
+}
+
+// ── main ───────────────────────────────────────────────────────────────────
+let payload = {};
+try {
+  const raw = readFileSync(0, "utf8");
+  if (raw.trim()) payload = JSON.parse(raw);
+} catch {
+  process.exit(0); // Never let a malformed payload block legitimate work.
+}
+
+const reason = evaluate(payload);
+
+if (reason) {
+  // Claude Code reads hookSpecificOutput; Codex reads decision/reason. Emitting
+  // both keeps this one file valid for both, and each ignores the other's.
+  process.stdout.write(
+    JSON.stringify({
+      decision: "block",
+      reason: `enkinex policy: ${reason}`,
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: `enkinex policy: ${reason}`,
+      },
+    }),
+  );
+}
+
+process.exit(0);
