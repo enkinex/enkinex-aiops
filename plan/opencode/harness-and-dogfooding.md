@@ -678,6 +678,33 @@ reports the opposite of the truth.
   human-driven `/ci-*` chain rather than a loop task.
 - `docs-writer`'s instructions mention the website's `TodoBanner` component
   and are synced into KCL library repos where it does not exist.
+- **context7 was connected but never directed — done 2026-08-11.** Phase 3
+  put the server in the shared baseline and proved it connects, but no agent,
+  command or loop task ever referenced it, so a tool catalog was being paid
+  for in every session across ten repos on the chance a model would reach for
+  it unprompted. Under ADR-0004 an available capability that is not an
+  executable artefact is not governance. `build-kcl` and `review-standard`
+  now carry the verified library IDs and a stated rule about when to resolve
+  docs. Coverage was re-checked against the live index at the same time: KCL,
+  ODCS, ODPS, Ossie and the Databricks bundle schema all resolve; **OKF does
+  not**, so the baseline comment that named it has been corrected and
+  `loop.md` §Phase 3 carries the correction.
+
+  Two follow-ups this opened, neither blocking:
+
+  - **Bisect context7 against §2.1.** That hang lists "MCP server startup
+    interacting with the pipe" as un-ruled-out, and context7 is the only
+    *remote* server in the baseline — a network handshake at startup under a
+    non-TTY pipe. It does not explain why odcs hangs and okf does not, since
+    both get the same baseline, so repo size stays the better suspect; but
+    `enabled: false` for one run is a 30-second test on a blocking bug and
+    should be tried before the expensive theories.
+  - **No regression coverage.** `tests/mcp.test.sh` covers only
+    `enkinex.mjs`; nothing catches the remote endpoint moving or going away,
+    which is a third-party HTTP dependency synced into ten repos. A
+    connectivity case would break the suite's hermetic property, so it
+    belongs behind the same "skip when the binary is absent" guard the
+    model-pin section already uses.
 
 Acceptance: 2.1 fixed with a regression case; 2.2, 2.3, 2.4, 2.5 each either
 delivered or recorded as an explicit decision with rationale; 7A dogfooding

@@ -267,6 +267,13 @@ Acceptance evidence:
 - The website overlay's permission deltas merge over the baseline as intended (`npm run deploy*` deny,
   `npm run typecheck*` / `npx playwright test*` allow, baseline `just check*` preserved).
 
+> **Correction (2026-08-11).** Two claims above were checked against the live index and one was wrong.
+> KCL (`/kcl-lang/kcl-lang.io`, 3918 snippets), ODCS and ODPS (`/bitol-io/*`), Ossie (`/apache/ossie`)
+> and the Databricks bundle schema (`/databricks/cli`) all resolve — but **OKF is not indexed by
+> context7**, so naming it as a reason for the server was never true. The acceptance test also proved
+> only that the server *connects*: no agent or loop task referenced it, so the capability sat unused
+> for a week. Both are addressed in `harness-and-dogfooding.md` §2.6.
+
 **Not delivered — OpenRouter fallback chains (§5).** No verified config path exists. `provider.<id>.options` accepts
 unknown keys, and `agent.options` is free-form, but neither is documented to forward OpenRouter routing parameters
 (`models`, `provider.order`, `allow_fallbacks`), and an attempt to prove it by pointing `options.baseURL` at a local

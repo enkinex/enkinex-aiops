@@ -49,8 +49,16 @@
   // catalog is ambient per-session cost. That argument applies to every MCP
   // server, so placement follows the catalog size and the breadth of use:
   //
-  //   context7  — 2 tools, useful in every repo (KCL, ODCS/ODPS/OKF specs,
-  //               Docusaurus) → shared baseline.
+  //   context7  — 2 tools, useful in every repo (KCL, ODCS/ODPS/Ossie specs,
+  //               the Databricks bundle schema, Docusaurus) → shared baseline.
+  //               Coverage re-checked 2026-08-11: KCL /kcl-lang/kcl-lang.io,
+  //               ODCS + ODPS /bitol-io/*, Ossie /apache/ossie, DAB
+  //               /databricks/cli. **OKF is not indexed** — enkinex-okf works
+  //               from its committed reference, and the Phase 3 corpus in
+  //               enkinex-knowledge-base is the answer there, not context7.
+  //               The verified IDs are wired into the build-kcl and
+  //               review-standard agents, which is what makes the server earn
+  //               its per-session cost.
   //   playwright — ~25 tools, useful only for website e2e → declared in
   //               enkinex-org-website/.opencode/opencode.jsonc, not here.
   //
