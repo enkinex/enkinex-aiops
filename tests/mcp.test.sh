@@ -8,7 +8,10 @@
 # frozen here.
 #
 # context7 fails silently in a different way — it is remote, so it can move or
-# stop answering without any local file changing.
+# stop answering without any local file changing. The cases here cover the part
+# of that this repo owns (the declarations agreeing, and opencode loading them);
+# they deliberately stop short of asserting the endpoint answers, so the gate
+# does not ride on a third party's uptime.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(dirname "$HERE")"
@@ -147,23 +150,33 @@ else
         "mcpServers must parse and declare enkinex and context7"
 fi
 
-section "context7 answers over the network"
-# The only non-hermetic case in this suite, guarded like the model pins in
-# agents.test.sh: an absent binary is environmental (CI runs without it) and
-# skips. A present binary that lists the server as anything but connected is a
-# real signal — the agents' instructions now depend on it answering.
+section "opencode resolves context7 as a declared server"
+# Presence, deliberately NOT reachability. Asserting "connected" would put a
+# free unauthenticated third-party endpoint on the critical path of `just
+# check`, so an outage or a rate-limit would redden a gate that has nothing to
+# do with the change under test — and a flaky gate is one people learn to
+# ignore. What is asserted is that opencode parses the declaration and
+# registers the server, which is the part this repo controls.
+#
+# The accepted gap: an endpoint that has moved or gone away still passes here,
+# because opencode lists a declared server whether or not it answers. That risk
+# is carried by the two declaration cases above plus a human noticing docs
+# lookups failing, not by this suite.
+#
+# Guarded like the model pins in agents.test.sh: an absent binary is
+# environmental (CI runs without it) and skips.
 if ! command -v opencode >/dev/null 2>&1; then
-    ok "skipped: opencode not installed, so the endpoint cannot be reached here"
+    ok "skipped: opencode not installed, so the server list is unavailable"
 else
     MCP_LIST="$(cd "$ROOT" && timeout 120 opencode mcp list 2>/dev/null |
         sed -e 's/\x1b\[[0-9;]*m//g' || true)"
     if [ -z "$MCP_LIST" ]; then
         no "opencode reports the server list" "opencode mcp list returned nothing"
-    elif grep -Eq 'context7[[:space:]]+connected' <<<"$MCP_LIST"; then
-        ok "context7 connected"
+    elif grep -q 'context7' <<<"$MCP_LIST"; then
+        ok "context7 is registered"
     else
-        no "context7 connected" \
-            "declared but not reachable — endpoint moved, throttled, or offline"
+        no "context7 is registered" \
+            "declared in opencode.jsonc but opencode did not load it — check the mcp block parses"
     fi
 fi
 

@@ -698,12 +698,18 @@ reports the opposite of the truth.
     of an agent's instructions cannot quietly return the server to being
     unreferenced. `tests/mcp.test.sh` asserts the opencode baseline and the
     Claude Code adapter declare the *same* endpoint — they are separate files
-    and could drift onto different servers — and adds one guarded live case
-    that fails when `opencode mcp list` reports context7 as anything but
-    connected. That case is non-hermetic by design and skips without the
-    binary, matching the model-pin guard. Note the consequence: with opencode
-    installed, `just check` now depends on a free unauthenticated endpoint, so
-    a context7 outage or a rate-limit reddens the gate.
+    and could drift onto different servers — and adds one guarded case that
+    `opencode mcp list` registers the server, skipping without the binary as
+    the model-pin guard does.
+
+    That last case asserts **presence, not reachability**, which was a
+    deliberate downgrade. Asserting "connected" put a free unauthenticated
+    third-party endpoint on the critical path of `just check`, so an outage or
+    a rate-limit would have reddened a gate unrelated to the change under
+    test, and a flaky gate is one people stop reading. The accepted gap: an
+    endpoint that has moved still passes, because opencode lists a declared
+    server whether or not it answers. Detection of that falls to the agents'
+    docs lookups visibly failing, not to the suite.
   - **A possible contribution to §2.1, not yet tested.** That hang lists "MCP
     server startup interacting with the pipe" as un-ruled-out, and context7 is
     the only *remote* server in the baseline — a network handshake at startup
