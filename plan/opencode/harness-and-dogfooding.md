@@ -360,6 +360,38 @@ does not block a merge (`required_status_checks: null` everywhere).
 A deterministic-only workflow — no model calls — was already judged the
 narrower amendment in the item this replaces. It stays narrow.
 
+**Open — the KCL toolchain is unpinned (found 2026-08-11).** Every KCL repo's
+workflow installs the compiler with
+
+```yaml
+run: wget -q https://kcl-lang.io/script/install-cli.sh -O - | /bin/bash
+```
+
+which always fetches the latest release. Checked on odcs, odps, okf,
+databricks and ossie: none pins a version. The consequence surfaced while
+opening the context7 sync PRs — `enkinex-ossie` CI failed on a `just check`
+formatting gate that passes locally under kcl 0.12.7, because a newer `kcl
+fmt` in CI strips a trailing blank line from `ossie.k`. Nothing in the repo
+changed; the toolchain moved underneath it. `main` was last green on
+2026-08-06.
+
+This is worse than an ordinary flake, because the required `test` check is the
+mechanism §1.6 just installed to make merges safe. An unpinned compiler means
+a green check certifies "passes against whatever shipped today", so CI can go
+red with no commit behind it, and — the direction that actually matters —
+a formatting or lint regression can be masked by a toolchain that stopped
+reporting it. A repo set whose subject is reproducible governance should not
+have a floating compiler in its gate.
+
+Fix: pin the version in the install step across all repos with code, sourced
+from the shared layer rather than edited per repo, and treat a bump as a PR
+the way model pins already are (ADR-0002). `kcl.mod` pins the *library*
+dependencies but says nothing about the compiler that reads it, so this is a
+genuine gap rather than a duplicate of existing pinning.
+
+The immediate symptom was cleared separately by committing the formatting
+`kcl fmt` wants; that unblocks ossie but does not address the cause.
+
 ### 1.7 Tag protection
 
 Tags are the release contract for a `kcl mod` consumer far more than `main`
