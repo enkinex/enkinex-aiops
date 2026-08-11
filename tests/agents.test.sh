@@ -59,6 +59,46 @@ else
     done
 fi
 
+section "KCL agents carry the context7 docs wiring"
+# context7 sat in the shared baseline for a week: connected, proven by Phase 3's
+# acceptance test, and referenced by nothing — a tool catalog billed to every
+# session across ten repos with no caller. The wiring is what makes it earn that
+# cost, and a well-meaning trim of an agent's instructions is exactly how it
+# would quietly go back to being unused. See harness-and-dogfooding.md §2.6.
+C7_IDS="/kcl-lang/kcl-lang.io
+/bitol-io/open-data-contract-standard
+/bitol-io/open-data-product-standard
+/apache/ossie
+/databricks/cli"
+for name in build-kcl review-standard; do
+    f="$AGENT_DIR/$name.md"
+    [ -f "$f" ] || { no "$name exists" "missing agent definition"; continue; }
+
+    if grep -Fq "context7_query-docs" "$f"; then
+        ok "$name names the context7 tool"
+    else
+        no "$name names the context7 tool" \
+            "the server is declared in opencode.jsonc but no agent would call it"
+    fi
+
+    missing=""
+    while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        grep -Fq "$id" "$f" || missing="$missing $id"
+    done <<<"$C7_IDS"
+    [ -z "$missing" ] && ok "$name carries every verified library id" ||
+        no "$name carries every verified library id" "missing:$missing"
+
+    # OKF is the one standard context7 does not index. Without the exception
+    # stated, the agent spends calls hunting for an entry that does not exist.
+    if grep -Fq "not indexed by context7" "$f"; then
+        ok "$name records that OKF is not indexed"
+    else
+        no "$name records that OKF is not indexed" \
+            "enkinex-okf must be steered to its committed reference"
+    fi
+done
+
 section "commands delegate to agents that exist"
 for f in "$CMD_DIR"/*.md; do
     name="$(basename "$f" .md)"

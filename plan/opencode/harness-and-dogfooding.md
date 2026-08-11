@@ -692,19 +692,32 @@ reports the opposite of the truth.
 
   Two follow-ups this opened, neither blocking:
 
-  - **Bisect context7 against §2.1.** That hang lists "MCP server startup
-    interacting with the pipe" as un-ruled-out, and context7 is the only
-    *remote* server in the baseline — a network handshake at startup under a
-    non-TTY pipe. It does not explain why odcs hangs and okf does not, since
-    both get the same baseline, so repo size stays the better suspect; but
-    `enabled: false` for one run is a 30-second test on a blocking bug and
-    should be tried before the expensive theories.
-  - **No regression coverage.** `tests/mcp.test.sh` covers only
-    `enkinex.mjs`; nothing catches the remote endpoint moving or going away,
-    which is a third-party HTTP dependency synced into ten repos. A
-    connectivity case would break the suite's hermetic property, so it
-    belongs behind the same "skip when the binary is absent" guard the
-    model-pin section already uses.
+  - **Regression coverage — done 2026-08-11.** `tests/agents.test.sh` now
+    asserts both agents still name `context7_query-docs`, still carry all
+    five verified library IDs, and still record the OKF exception, so a trim
+    of an agent's instructions cannot quietly return the server to being
+    unreferenced. `tests/mcp.test.sh` asserts the opencode baseline and the
+    Claude Code adapter declare the *same* endpoint — they are separate files
+    and could drift onto different servers — and adds one guarded live case
+    that fails when `opencode mcp list` reports context7 as anything but
+    connected. That case is non-hermetic by design and skips without the
+    binary, matching the model-pin guard. Note the consequence: with opencode
+    installed, `just check` now depends on a free unauthenticated endpoint, so
+    a context7 outage or a rate-limit reddens the gate.
+  - **A possible contribution to §2.1, not yet tested.** That hang lists "MCP
+    server startup interacting with the pipe" as un-ruled-out, and context7 is
+    the only *remote* server in the baseline — a network handshake at startup
+    under a non-TTY pipe. The overlay merges rather than replaces
+    (`scripts/opencode-headless.sh` §overlay), so both servers really do start
+    on every loop step. It does not explain why odcs hangs and okf does not,
+    since both get the same baseline, so repo size stays the better suspect.
+
+    Correction to an earlier note here: flipping context7 off is **not** the
+    first experiment. The known delta between the working hand run and the
+    hanging loop run is the `2>&1 | tee` at `scripts/loop.sh:133`, so the first
+    run is the hand command *with* that pipe added. Only if that reproduces
+    does disabling MCP separate buffering from server startup. Each run is real
+    mid-tier spend and the hanging ones need killing, so this is not free.
 
 Acceptance: 2.1 fixed with a regression case; 2.2, 2.3, 2.4, 2.5 each either
 delivered or recorded as an explicit decision with rationale; 7A dogfooding

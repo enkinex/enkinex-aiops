@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Regression suite for mcp/enkinex.mjs.
+# Regression suite for the MCP layer: mcp/enkinex.mjs, and the context7
+# declaration that ships beside it.
 #
 # The stdio transport is unforgiving in ways that fail silently: one stray byte
 # on stdout corrupts the stream, and exiting while a tool call is in flight
 # returns nothing at all. Both happened while building this server, so both are
 # frozen here.
+#
+# context7 fails silently in a different way — it is remote, so it can move or
+# stop answering without any local file changing.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(dirname "$HERE")"
@@ -114,5 +118,53 @@ section "notifications take no response"
 OUT="$(rpc "$ROOT" '{"jsonrpc":"2.0","method":"notifications/initialized"}')"
 [ -z "$(tr -d '[:space:]' <<<"$OUT")" ] && ok "notification produces no output" ||
     no "notification produces no output" "got: $OUT"
+
+# ── context7 ───────────────────────────────────────────────────────────────
+# The other server in the baseline, and the only third-party HTTP dependency
+# the shared layer ships to every repo in REPOS. Nothing else in the suite
+# would notice its endpoint moving, or the opencode and Claude Code
+# declarations drifting apart and pointing at different servers.
+C7_URL="https://mcp.context7.com/mcp"
+BASELINE="$ROOT/opencode.jsonc"
+ADAPTER="$ROOT/mcp/adapters/mcp.json"
+
+section "context7 is declared the same way to every harness"
+grep -Fq "$C7_URL" "$BASELINE" &&
+    ok "the opencode baseline declares the endpoint" ||
+    no "the opencode baseline declares the endpoint" "expected $C7_URL in opencode.jsonc"
+
+grep -Fq "$C7_URL" "$ADAPTER" &&
+    ok "the Claude Code adapter declares the same endpoint" ||
+    no "the Claude Code adapter declares the same endpoint" \
+        "opencode and .mcp.json would reach different servers"
+
+if node -e 'const c = require(process.argv[1]);
+  const s = c.mcpServers || {};
+  process.exit(s.enkinex && s.context7 ? 0 : 1);' "$ADAPTER" 2>/dev/null; then
+    ok "the adapter is valid JSON carrying both servers"
+else
+    no "the adapter is valid JSON carrying both servers" \
+        "mcpServers must parse and declare enkinex and context7"
+fi
+
+section "context7 answers over the network"
+# The only non-hermetic case in this suite, guarded like the model pins in
+# agents.test.sh: an absent binary is environmental (CI runs without it) and
+# skips. A present binary that lists the server as anything but connected is a
+# real signal — the agents' instructions now depend on it answering.
+if ! command -v opencode >/dev/null 2>&1; then
+    ok "skipped: opencode not installed, so the endpoint cannot be reached here"
+else
+    MCP_LIST="$(cd "$ROOT" && timeout 120 opencode mcp list 2>/dev/null |
+        sed -e 's/\x1b\[[0-9;]*m//g' || true)"
+    if [ -z "$MCP_LIST" ]; then
+        no "opencode reports the server list" "opencode mcp list returned nothing"
+    elif grep -Eq 'context7[[:space:]]+connected' <<<"$MCP_LIST"; then
+        ok "context7 connected"
+    else
+        no "context7 connected" \
+            "declared but not reachable — endpoint moved, throttled, or offline"
+    fi
+fi
 
 summary
