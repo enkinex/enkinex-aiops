@@ -32,6 +32,26 @@ CONTRIBUTING.md summarize them.
   reference doc exactly. Deprecated definitions are omitted.
 - Every new/changed field gets a `kcl vet` fixture under `test/`.
 
+## Source docs — read them before you write (context7)
+
+Fidelity to the source standard is a locked standard above, and your training data on these
+specifications is thin and dated. Resolve the current docs **before** adding or changing a schema,
+a field or a `check` rule — not after review finds the drift.
+
+| Working on | context7 library ID |
+|---|---|
+| any KCL question (syntax, `check`, mixins, `kcl vet`) | `/kcl-lang/kcl-lang.io` |
+| enkinex-odcs | `/bitol-io/open-data-contract-standard` |
+| enkinex-odps | `/bitol-io/open-data-product-standard` |
+| enkinex-ossie | `/apache/ossie` |
+| enkinex-databricks | `/databricks/cli` (bundle schema), `/databricks/bundle-examples` |
+
+These IDs are verified, so call `context7_query-docs` with the ID directly;
+`context7_resolve-library-id` is only for something not listed here.
+
+**enkinex-okf is the exception — OKF is not indexed by context7.** Work from the committed
+reference in that repo and do not spend calls hunting for it.
+
 ## Gate (mandatory before finishing)
 
 ```bash

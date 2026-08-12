@@ -678,6 +678,52 @@ reports the opposite of the truth.
   human-driven `/ci-*` chain rather than a loop task.
 - `docs-writer`'s instructions mention the website's `TodoBanner` component
   and are synced into KCL library repos where it does not exist.
+- **context7 was connected but never directed — done 2026-08-11.** Phase 3
+  put the server in the shared baseline and proved it connects, but no agent,
+  command or loop task ever referenced it, so a tool catalog was being paid
+  for in every session across ten repos on the chance a model would reach for
+  it unprompted. Under ADR-0004 an available capability that is not an
+  executable artefact is not governance. `build-kcl` and `review-standard`
+  now carry the verified library IDs and a stated rule about when to resolve
+  docs. Coverage was re-checked against the live index at the same time: KCL,
+  ODCS, ODPS, Ossie and the Databricks bundle schema all resolve; **OKF does
+  not**, so the baseline comment that named it has been corrected and
+  `loop.md` §Phase 3 carries the correction.
+
+  Two follow-ups this opened, neither blocking:
+
+  - **Regression coverage — done 2026-08-11.** `tests/agents.test.sh` now
+    asserts both agents still name `context7_query-docs`, still carry all
+    five verified library IDs, and still record the OKF exception, so a trim
+    of an agent's instructions cannot quietly return the server to being
+    unreferenced. `tests/mcp.test.sh` asserts the opencode baseline and the
+    Claude Code adapter declare the *same* endpoint — they are separate files
+    and could drift onto different servers — and adds one guarded case that
+    `opencode mcp list` registers the server, skipping without the binary as
+    the model-pin guard does.
+
+    That last case asserts **presence, not reachability**, which was a
+    deliberate downgrade. Asserting "connected" put a free unauthenticated
+    third-party endpoint on the critical path of `just check`, so an outage or
+    a rate-limit would have reddened a gate unrelated to the change under
+    test, and a flaky gate is one people stop reading. The accepted gap: an
+    endpoint that has moved still passes, because opencode lists a declared
+    server whether or not it answers. Detection of that falls to the agents'
+    docs lookups visibly failing, not to the suite.
+  - **A possible contribution to §2.1, not yet tested.** That hang lists "MCP
+    server startup interacting with the pipe" as un-ruled-out, and context7 is
+    the only *remote* server in the baseline — a network handshake at startup
+    under a non-TTY pipe. The overlay merges rather than replaces
+    (`scripts/opencode-headless.sh` §overlay), so both servers really do start
+    on every loop step. It does not explain why odcs hangs and okf does not,
+    since both get the same baseline, so repo size stays the better suspect.
+
+    Correction to an earlier note here: flipping context7 off is **not** the
+    first experiment. The known delta between the working hand run and the
+    hanging loop run is the `2>&1 | tee` at `scripts/loop.sh:133`, so the first
+    run is the hand command *with* that pipe added. Only if that reproduces
+    does disabling MCP separate buffering from server startup. Each run is real
+    mid-tier spend and the hanging ones need killing, so this is not free.
 
 Acceptance: 2.1 fixed with a regression case; 2.2, 2.3, 2.4, 2.5 each either
 delivered or recorded as an explicit decision with rationale; 7A dogfooding
