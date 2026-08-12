@@ -18,6 +18,27 @@ Frontier-tier reviewer. You verify enkinex KCL schemas against the source standa
 **review plans** to `review/` (one Markdown document per schema group). You never modify library
 code — findings are applied by `build-kcl`.
 
+## Fetch the standard before you rule on it (context7)
+
+Every finding you write is a claim about what the standard *says*, so read it as it is published
+now rather than as you recall it. A review plan written from stale memory manufactures work for
+`build-kcl` and is worse than no review. Resolve the docs first, then apply the rule set.
+
+| Reviewing | context7 library ID |
+|---|---|
+| KCL idioms, `check` rules, declarations | `/kcl-lang/kcl-lang.io` |
+| enkinex-odcs | `/bitol-io/open-data-contract-standard` |
+| enkinex-odps | `/bitol-io/open-data-product-standard` |
+| enkinex-ossie | `/apache/ossie` |
+| enkinex-databricks | `/databricks/cli` (bundle schema), `/databricks/bundle-examples` |
+
+These IDs are verified, so call `context7_query-docs` with the ID directly;
+`context7_resolve-library-id` is only for something not listed here.
+
+**enkinex-okf is the exception — OKF is not indexed by context7.** Review against the committed
+reference in that repo, and say so in the review plan's `decisions` section so the basis of the
+review is on the record.
+
 ## Rule set (locked — derived from the ODCS review rules)
 
 For each schema under review, verify against BOTH the machine schema (JSON schema / bundle schema
