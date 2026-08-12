@@ -360,6 +360,50 @@ does not block a merge (`required_status_checks: null` everywhere).
 A deterministic-only workflow — no model calls — was already judged the
 narrower amendment in the item this replaces. It stays narrow.
 
+**Open — the KCL toolchain is unpinned (found 2026-08-11).** Every KCL repo's
+workflow installs the compiler with
+
+```yaml
+run: wget -q https://kcl-lang.io/script/install-cli.sh -O - | /bin/bash
+```
+
+which always fetches the latest release. Checked on odcs, odps, okf,
+databricks and ossie: none pins a version. The consequence surfaced while
+opening the context7 sync PRs — `enkinex-ossie` CI failed on a `just check`
+formatting gate that passes locally. Nothing in the repo changed; the
+toolchain moved underneath it. `main` was last green on 2026-08-06.
+
+**`kcl fmt` is not stable across patch versions.** 0.12.7 keeps a trailing
+blank line at the end of `ossie.k`; 0.12.8, which CI installed, strips it. The
+two disagree about whether the repo is formatted, and **no file content
+satisfies both** — so committing 0.12.8's output, the obvious-looking fix,
+trades a red CI for a red *local* gate on every machine not yet upgraded.
+Verified rather than reasoned about: remove the line, run `kcl fmt` under
+0.12.7, and it comes back (369 bytes → 368 → 369).
+
+This is worse than an ordinary flake, because the required `test` check is the
+mechanism §1.6 just installed to make merges safe. An unpinned compiler means
+a green check certifies "passes against whatever shipped today", so CI can go
+red with no commit behind it, and — the direction that actually matters —
+a formatting or lint regression can be masked by a toolchain that stopped
+reporting it. A repo set whose subject is reproducible governance should not
+have a floating compiler in its gate.
+
+Fix: pin the version in the install step across all repos with code, sourced
+from the shared layer rather than edited per repo, and treat a bump as a PR
+the way model pins already are (ADR-0002). `kcl.mod` pins the *library*
+dependencies but says nothing about the compiler that reads it, so this is a
+genuine gap rather than a duplicate of existing pinning.
+
+One trap for whoever does this: the install script reads the version from a
+`KCL_VERSION` environment variable or `-v/--version`, and **ignores a bare
+positional argument** — passing it that way pins nothing while looking pinned.
+
+`enkinex-ossie` was unblocked ahead of the shared fix by pinning 0.12.7 in its
+own workflow (ossie PR #7). That is one repo out of five with the same step;
+odcs, odps, okf and databricks pass today only because their `.k` files happen
+to be clean under both versions, which is luck rather than a property.
+
 ### 1.7 Tag protection
 
 Tags are the release contract for a `kcl mod` consumer far more than `main`
