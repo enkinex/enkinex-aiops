@@ -74,6 +74,17 @@ it reports this repo's ADRs and nothing more (`mcp/README.md`).
   Phases 0–6 done. Phase 7 dogfooding is partial: proven against
   `enkinex-okf`, blocked in `enkinex-odcs` by a loop hang tracked in
   `../enkinex-pm/plan/enkinex-aiops/refactor/harness-and-dogfooding.md` §2.1.
+- **Commit `Refs:` footers changed shape on 2026-08-13** (AIOPS-10). Before
+  that date they are repo-relative paths into `plan/`, `discovery/` or
+  `../enkinex-lab/` — directories that have since moved or gone, so those
+  footers resolve for nobody. After it they are task IDs (`AIOPS-10`)
+  resolving under `../enkinex-pm/plan/<repo>/`, and `commit-msg` enforces the
+  shape rather than merely checking the line is non-blank. History is not
+  rewritten and the old footers are not errors; the discontinuity is recorded
+  here so it is explained rather than discovered. Note `enkinex-manager` holds
+  a copy of the hook but is outside `REPOS`, so its copy stays permissive
+  until [MGR-12](../enkinex-pm/plan/enkinex-manager/12-adr-0001-repoint.md)
+  settles that repo's conventions.
 - **This repository was recreated from a clean root commit on 2026-08-06**
   and published. The previous forty-commit history carried agent-memory and
   task-spec files describing a private system; the disposition is recorded in
@@ -117,7 +128,7 @@ configuration surfaces (Databricks Asset Bundles) as typed, modular code.
   docs · chore · test · infra · proj`; slug kebab-case, ≤6 words,
   imperative (e.g. `feat/output-port-retry-policy`).
 - Commits: Conventional Commits subset `<type>: <imperative ≤72>`,
-  `Refs:` footer pointing at the plan section delivered, no `Closes:`/
+  `Refs: <TASK-ID>` footer naming the task delivered, no `Closes:`/
   `Fixes:`/`Resolves:` (there are no GitHub Issues).
 - **No repo-name scope.** A scope is optional and names a *module inside
   this repo* (`catalog`, `quality`, `trust`, `githooks`), never the repo
@@ -171,11 +182,24 @@ executable governance). A repo's ADRs are public with its code, so an ADR
 citing a plan cites something the reader may not be able to open: say so
 at the citation rather than leaving a path that resolves for nobody.
 
-Commit `Refs:` footers point at the plan the commit delivers, which now
-resolves only for someone holding the `enkinex-pm` clone — a cost this
-org has accepted deliberately. Use `No-Plan-Ref:` when a commit advances
-no plan; `commit-msg` accepts it and it is the correct footer, not a
-bypass.
+A commit's `Refs:` footer names the task it delivers by its **stable task
+ID** — a project prefix plus the task's file number, `AIOPS-10`, `MGR-16`,
+`PM-04` — resolving to `../enkinex-pm/plan/<repo>/<NN>-<slug>.md`.
+Separate several with commas. Never write the path: the ID survives a file
+being renamed or re-numbered, and a path encodes one machine's checkout
+layout into permanent history. The ID resolves only for someone holding the
+`enkinex-pm` clone — a cost this org has accepted deliberately.
+
+Use `No-Plan-Ref: <reason>` when a commit advances no task. It is the
+**correct footer, not a bypass** — repo hygiene, tooling and dependency
+bumps legitimately advance no plan, and inventing a task ID to satisfy the
+hook is the failure this escape hatch prevents.
+
+`commit-msg` enforces both shapes. **Footers changed shape on 2026-08-13**
+(AIOPS-10): commits before that date point at `plan/…` paths that no longer
+resolve, commits after name task IDs. Both are readable; neither is
+machine-resolvable across the boundary. History is not rewritten and old
+footers are not errors — the hook validates only the message being written.
 
 ### Model tiers (OpenRouter)
 
