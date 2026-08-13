@@ -10,7 +10,7 @@
   // file, so it wins — verified against opencode 1.18.11 config loading).
   // ═══════════════════════════════════════════════════════════════════════
 
-  // ── Models (OpenRouter, 3-tier — see plan/opencode/loop.md §5) ──────────
+  // ── Models (OpenRouter, 3-tier — the table is in AGENTS.shared.md) ──────
   // Default session model: mid tier. Frontier agents (plan/review) pin
   // their own model in agent frontmatter. Re-pin only via PR per ADR-0002.
   // NOTE: free-tier models rate-limit upstream without warning

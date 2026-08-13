@@ -91,7 +91,11 @@ const BASH_RULES = [
     id: "pr-merge",
     check: (s) =>
       startsWith(s, "gh pr merge")
-        ? "landing a PR is a human action in v0.2.0 (ADR-0002, plan/opencode/loop.md §8.3). Ask the user to merge."
+        // Inlined, not cited: this string is printed to a user mid-denial, and
+        // the plan it used to name is in a private repo they may not hold. A
+        // path nobody can open is noise at exactly the moment the message has
+        // to be actionable.
+        ? "landing a PR is a human action (ADR-0002): an unattended run must not merge its own work. Ask the user to merge."
         : null,
   },
   {
