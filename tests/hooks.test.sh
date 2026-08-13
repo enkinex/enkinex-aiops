@@ -10,7 +10,7 @@ source "$HERE/lib.sh"
 REPO="$(new_repo "$ROOT/githooks")"
 trap 'rm -rf "$REPO"' EXIT
 
-REFS='Refs: plan/x.md#s1'
+REFS='Refs: AIOPS-10'
 
 accepts() { if try_commit "$REPO" "$2"; then ok "$1"; else no "$1" "hook rejected a valid message"; fi; }
 rejects() { if try_commit "$REPO" "$2"; then no "$1" "hook accepted an invalid message"; else ok "$1"; fi; }
@@ -26,6 +26,35 @@ rejects "trailing period"              "feat: add a thing."$'\n\n'"$REFS"
 rejects "subject over 72 chars"        "feat: $(printf 'x%.0s' {1..70})"$'\n\n'"$REFS"
 rejects "missing Refs footer"          "feat: add a thing"
 rejects "Closes: footer"               "fix: thing"$'\n\n'"Closes: #12"$'\n'"$REFS"
+
+section "commit-msg — the Refs: task-ID grammar"
+# AIOPS-10. The old grammar was a repo-relative path into a plan/ directory
+# that no longer exists, and the hook only checked the value was non-blank —
+# so footers pointed nowhere silently and permanently. The ID is now checked.
+accepts "task ID"                      "feat: a thing"$'\n\n'"Refs: AIOPS-10"
+accepts "a different project prefix"   "feat: a thing"$'\n\n'"Refs: MGR-16"
+accepts "several IDs, comma-separated" "feat: a thing"$'\n\n'"Refs: AIOPS-10, PM-04"
+accepts "No-Plan-Ref carries a reason" "chore: tooling"$'\n\n'"No-Plan-Ref: repo hygiene"
+rejects "the retired path grammar"     "feat: a thing"$'\n\n'"Refs: plan/x.md#s1"
+rejects "a sibling-relative path"      "feat: a thing"$'\n\n'"Refs: ../enkinex-pm/plan/enkinex-aiops/10-refs.md"
+rejects "a bare word"                  "feat: a thing"$'\n\n'"Refs: soon"
+rejects "lower-case prefix"            "feat: a thing"$'\n\n'"Refs: aiops-10"
+rejects "prefix with no number"        "feat: a thing"$'\n\n'"Refs: AIOPS"
+rejects "No-Plan-Ref with no reason"   "chore: tooling"$'\n\n'"No-Plan-Ref:"
+
+# A commit body may discuss Refs: footers at the start of a line — this repo's
+# own history has seven such commits, written while changing this very rule. A
+# hook that refused them would refuse commits about the convention it enforces,
+# so one valid reference is enough rather than every matching line.
+accepts "prose Refs: line beside a valid footer" \
+    "docs: explain the footer"$'\n\n'"Refs: footers now name a task ID rather than"$'\n'"a path."$'\n\n'"Refs: AIOPS-10"
+rejects "prose Refs: line with no valid footer" \
+    "docs: explain the footer"$'\n\n'"Refs: footers now name a task ID rather than"$'\n'"a path."
+
+# The exemptions are checked before the footer rule, so machine-generated
+# subjects stay exempt under the tighter grammar too.
+accepts "merge subject still exempt"   "Merge pull request #10 from enkinex/x"
+accepts "revert subject still exempt"  "Revert \"feat: a thing\""
 
 section "commit-msg — no repo-name scope"
 # The rule compares the scope against the repository's directory name, so the

@@ -60,10 +60,44 @@ if printf '%s\n' "$msg" | grep -Eqi '^(Closes|Fixes|Resolves):'; then
     fail "Closes:/Fixes:/Resolves: footers are not used — enkinex repos have no GitHub Issues."
 fi
 
-if ! printf '%s\n' "$msg" | grep -Eq '^(Refs|No-Plan-Ref): *[^[:space:]]'; then
+# Plan reference footer. `Refs:` carries a task ID — a project prefix plus the
+# task's file number in the private enkinex-pm planning repo (AIOPS-10, MGR-16,
+# PM-04) — and `No-Plan-Ref:` is the documented footer for a commit that
+# advances no task, not a bypass.
+#
+# The ID is validated and the old `Refs: plan/<file>.md#<anchor>` path grammar
+# is not accepted. That grammar named a directory the repos no longer have, so
+# an unchecked footer pointed nowhere silently and permanently — the defect
+# AIOPS-10 exists to close. The pattern is deliberately generic rather than an
+# enumerated list of prefixes, so a project acquiring its first plan folder
+# needs no change here.
+#
+# Only ONE line has to be a valid reference rather than every matching line: a
+# commit body may legitimately discuss `Refs:` footers at the start of a line —
+# this history has seven such commits — and rejecting those would make the hook
+# refuse commits about the convention it enforces.
+#
+# History is untouched. This validates the message being written, never what is
+# already committed, so pre-changeover footers stay readable and are not errors.
+# `git commit --amend` on one is the single case where this refuses what it once
+# accepted, and this org does not rewrite history.
+TASK_ID='[A-Z][A-Z0-9]*-[0-9]+'
+if printf '%s\n' "$msg" | grep -Eq "^Refs: *${TASK_ID}([,[:space:]]+${TASK_ID})*[[:space:]]*$"; then
+    :
+elif printf '%s\n' "$msg" | grep -Eq '^No-Plan-Ref: *[^[:space:]]'; then
+    :
+else
+    found="$(printf '%s\n' "$msg" | grep -E '^(Refs|No-Plan-Ref):' | head -n1)"
+    [ -n "$found" ] && fail "plan reference footer is not a task ID.
+  got: $found
+  Use 'Refs: <TASK-ID>' — a project prefix plus the task's file number in
+  enkinex-pm, e.g. 'Refs: AIOPS-10'. Separate several with commas.
+  The 'Refs: plan/<file>.md#<anchor>' path grammar was retired when planning
+  moved to enkinex-pm: a path footer now resolves for nobody.
+  Use 'No-Plan-Ref: <reason>' when the commit advances no task."
     fail "missing plan reference footer.
-  Add 'Refs: <plan-file>.md#<section-anchor>' pointing at the section delivered,
-  or 'No-Plan-Ref: <reason>' when no plan section applies."
+  Add 'Refs: <TASK-ID>' naming the task delivered, e.g. 'Refs: AIOPS-10',
+  or 'No-Plan-Ref: <reason>' when the commit advances no task."
 fi
 
 exit 0
