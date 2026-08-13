@@ -89,6 +89,10 @@ if [ "$limit" = "none" ]; then
   Per-key limits are the only cost control that holds regardless of which
   harness spends the money — opencode, Claude Code, Codex or a stray script.
   Set one at openrouter.ai/settings/keys, or provision per-tier keys via the
-  management API. See discovery/opencode/harness-agnostic-review.md R7.
+  management API.
+
+  NOTE: a workspace-level limit (OpenRouter Guardrails) is NOT visible here —
+  /api/v1/key exposes only the per-key limit. If one is set, this warning is a
+  false positive. Tracked as AIOPS-15.
 WARN
 fi

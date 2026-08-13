@@ -79,8 +79,10 @@ check_claude_md() {
 # Copies the hooks and points the repo at them. git deliberately never runs
 # hooks from a fresh clone, so core.hooksPath is a bootstrap that has to happen
 # once per clone; there is no way around it inside git. The server-side backstop
-# for clones this never touched is tracked in
-# discovery/opencode/harness-agnostic-review.md §7.2.
+# for clones this never touched — branch protection and required checks, which
+# hold regardless of whether a hook ever ran — is applied by the governance
+# scripts in the private enkinex-pm, and the analysis behind it is that repo's
+# refactor/harness-agnostic-review.md §7.2.
 install_hooks() {
     local src="$1" dest="$2"
     rm -rf "${dest:?}/.githooks"

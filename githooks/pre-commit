@@ -4,8 +4,12 @@
 #
 # Carries the two rules that prompt text proved unable to enforce: the enkinex
 # remote guard (a mid-tier model created a branch in a non-enkinex repo anyway,
-# even after the instruction was hardened — plan/opencode/loop.md Phase 2
-# status) and the staged-secret scan.
+# even after the instruction was hardened) and the staged-secret scan.
+#
+# That incident is the whole justification for this hook existing, so it is
+# stated here rather than cited: the record is in the private enkinex-pm
+# planning repo (refactor/loop.md, Phase 2 status) and no outside reader of
+# this repository can open it.
 set -euo pipefail
 
 fail() {

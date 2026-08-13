@@ -16,8 +16,8 @@
 # The interactive posture in opencode.jsonc puts every mutation behind `ask`,
 # including `git push`, `gh pr create` and `gh pr merge`. Run headless with
 # --auto and those become allows — so an unattended loop could squash-merge a
-# PR, the one action ADR-0002 and plan/opencode/loop.md §8.3 keep permanently
-# human-gated.
+# PR — the one action ADR-0002 keeps permanently human-gated, on the grounds
+# that an unattended run must never be able to land its own work.
 #
 # The fix is a profile with NO `ask` at all, so behaviour is identical with or
 # without --auto:
