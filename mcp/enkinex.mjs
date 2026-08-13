@@ -14,20 +14,40 @@
 //
 // TOKEN ECONOMY (ADR-0002). A tool catalog is ambient per-session cost, which
 // is why the catalog is built from what the repo actually is: a repo with no
-// kcl.mod never sees the KCL tools, and a repo with no plan/ never sees
-// project_state. An empty catalog is the correct answer for an unrelated repo.
+// kcl.mod never sees the KCL tools, and a repo with nothing to summarise never
+// sees project_state. An empty catalog is the correct answer for an unrelated
+// repo, and that property is asserted in tests/mcp.test.sh.
+//
+// CENTRALISED PLANNING. Plans no longer live beside the code they describe;
+// they live in a private sibling, one folder per repo. A public tool must not
+// depend on a private path, so the reach is opt-in: ENKINEX_PM_ROOT, unset by
+// default. Unset, this server is exactly what it was — local directories only,
+// and a repo with none of them still pays nothing. Set, project_state also
+// summarises <ENKINEX_PM_ROOT>/plan/<repo>/, which is the only way an agent in
+// a public repo can orient on work that is planned elsewhere.
 //
 // stdio transport: newline-delimited JSON-RPC on stdout, nothing else ever.
 // Diagnostics go to stderr.
 
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 
 const ROOT = process.cwd();
 const DEFAULT_PROTOCOL = "2025-06-18";
 
+// Empty string counts as unset: an exported-but-blank variable is how a
+// harness config says "no", and treating it as a path would resolve to cwd.
+const PM_ROOT = process.env.ENKINEX_PM_ROOT || null;
+const REPO = basename(ROOT);
+
 const has = (p) => existsSync(join(ROOT, p));
+// Plans for THIS repo, in the private sibling. Absent when PM_ROOT is unset,
+// and absent when the sibling has no folder for this repo yet — both mean the
+// same thing to every caller: nothing to read.
+const pmPlanDir = PM_ROOT && existsSync(join(PM_ROOT, "plan", REPO))
+  ? join("plan", REPO)
+  : null;
 
 // ── tool catalog, derived from the repo ────────────────────────────────────
 function catalog() {
@@ -48,11 +68,11 @@ function catalog() {
     });
   }
 
-  if (has("plan") || has("discovery") || has("architecture")) {
+  if (has("plan") || has("discovery") || has("architecture") || pmPlanDir) {
     tools.push({
       name: "project_state",
       description:
-        "Summarise this repo's active plans, discovery documents and ADRs with their status lines, so you can orient without reading every file.",
+        "Summarise this repo's plans and ADRs with their status lines, so you can orient without reading every file. Reads the repo's own plan/, discovery/ and architecture/, plus its plan folder in the private planning sibling when ENKINEX_PM_ROOT is set.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     });
   }
@@ -77,14 +97,17 @@ function run(cmd, args, timeout = 300_000) {
 
 const tail = (s, n = 60) => s.split("\n").slice(-n).join("\n");
 
-function walk(dir, out = []) {
+// walk(dir, base) — markdown files under base/dir, as paths relative to base.
+// `base` is a parameter rather than always ROOT because the same walk now runs
+// over the private planning sibling.
+function walk(dir, base = ROOT, out = []) {
   let entries;
-  try { entries = readdirSync(join(ROOT, dir)); } catch { return out; }
+  try { entries = readdirSync(join(base, dir)); } catch { return out; }
   for (const e of entries) {
     const rel = join(dir, e);
     let st;
-    try { st = statSync(join(ROOT, rel)); } catch { continue; }
-    if (st.isDirectory()) walk(rel, out);
+    try { st = statSync(join(base, rel)); } catch { continue; }
+    if (st.isDirectory()) walk(rel, base, out);
     else if (e.endsWith(".md")) out.push(rel);
   }
   return out;
@@ -130,33 +153,49 @@ const IMPL = {
   },
 
   async project_state() {
-    const groups = [
-      ["Active plans", walk("plan").filter((p) => !p.includes(`${"plan"}/done/`))],
-      ["Completed plans", walk("plan/done")],
-      ["Discovery", walk("discovery")],
-      ["ADRs", walk("architecture")],
-    ];
+    // [label, base, files-relative-to-base, display prefix]. The planning
+    // sibling comes first: for a repo that plans centrally it is the only group
+    // with anything in it, and burying it under an empty heading helps nobody.
+    // The prefix keeps its paths distinguishable — a bare `plan/…` under a
+    // heading would otherwise read as a path in this repo, which is exactly the
+    // confusion that centralising planning creates.
+    const groups = [];
+    if (pmPlanDir) {
+      const at = `${basename(PM_ROOT)}/`;
+      groups.push(
+        ["Active plans", PM_ROOT, walk(pmPlanDir, PM_ROOT).filter((p) => !p.includes("/done/")), at],
+        ["Completed plans", PM_ROOT, walk(join("plan", "done", REPO), PM_ROOT), at],
+      );
+    }
+    groups.push(
+      ["Active plans (this repo)", ROOT, walk("plan").filter((p) => !p.startsWith("plan/done/")), ""],
+      ["Completed plans (this repo)", ROOT, walk("plan/done"), ""],
+      ["Discovery", ROOT, walk("discovery"), ""],
+      ["ADRs", ROOT, walk("architecture"), ""],
+    );
     const lines = [];
-    for (const [label, files] of groups) {
+    for (const [label, base, files, prefix] of groups) {
       if (!files.length) continue;
       lines.push(`## ${label}`);
       for (const f of files.sort()) {
         let body = "";
-        try { body = readFileSync(join(ROOT, f), "utf8"); } catch { continue; }
+        try { body = readFileSync(join(base, f), "utf8"); } catch { continue; }
         const title = body.match(/^#\s+(.+)$/m)?.[1] ?? relative(".", f);
         const status = body
           .split("\n")
           .filter((l) => /^\s*[-*]?\s*(\*\*)?(Status|Phase \d+ status)/i.test(l))
           .slice(0, 6)
           .map((l) => `    ${l.trim()}`);
-        lines.push(`  ${f} — ${title}`);
+        lines.push(`  ${prefix}${f} — ${title}`);
         lines.push(...status);
       }
     }
-    return {
-      isError: false,
-      text: lines.length ? lines.join("\n") : "No plan/, discovery/ or architecture/ documents found.",
-    };
+    // The empty case has two causes and they need different fixes, so say which
+    // one applies rather than making the reader guess.
+    const empty = PM_ROOT
+      ? `No documents found in this repo (plan/, discovery/, architecture/) or in ${basename(PM_ROOT)}/plan/${REPO}/.`
+      : "No plan/, discovery/ or architecture/ documents in this repo. Plans may live in the private planning sibling — set ENKINEX_PM_ROOT to include them.";
+    return { isError: false, text: lines.length ? lines.join("\n") : empty };
   },
 };
 

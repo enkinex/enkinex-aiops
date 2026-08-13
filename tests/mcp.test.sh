@@ -82,17 +82,62 @@ else
     ok "skipped: enkinex-odcs not present"
 fi
 
-# The token-economy property: a repo with neither kcl.mod nor plan/ pays nothing.
+# The token-economy property: a repo with nothing to summarise pays nothing.
 EMPTY="$(mktemp -d)"; trap 'rm -rf "$EMPTY"' EXIT
 [ "$(catalog_of "$EMPTY")" = "[]" ] && ok "an unrelated repo gets an empty catalog" ||
     no "an unrelated repo gets an empty catalog" "got $(catalog_of "$EMPTY")"
 
+# Centralised planning. Plans live in a private sibling, so project_state has to
+# reach out of the repo to find them — and a public tool must not depend on a
+# private path, so the reach is opt-in through ENKINEX_PM_ROOT.
+#
+# The fixture is built here rather than pointed at the real enkinex-pm clone:
+# this suite is hermetic and offline, and a case that needs someone's private
+# checkout present would pass on one machine and fail on every other.
+PM="$(mktemp -d)"
+PM_REPO="$(mktemp -d)/enkinex-fixture"        # basename is the repo key
+mkdir -p "$PM/plan/enkinex-fixture" "$PM/plan/done/enkinex-fixture" "$PM_REPO"
+printf '# Fixture plan\n\n- Status: **planned**\n' > "$PM/plan/enkinex-fixture/01-fixture.md"
+printf '# Shipped plan\n\n- Status: **done**\n'    > "$PM/plan/done/enkinex-fixture/02-shipped.md"
+trap 'rm -rf "$EMPTY" "$PM" "$(dirname "$PM_REPO")"' EXIT
+
+[ "$(catalog_of "$PM_REPO")" = "[]" ] &&
+    ok "a repo whose plans are elsewhere pays nothing without ENKINEX_PM_ROOT" ||
+    no "a repo whose plans are elsewhere pays nothing without ENKINEX_PM_ROOT" \
+       "got $(catalog_of "$PM_REPO")"
+
+PM_CATALOG="$(ENKINEX_PM_ROOT="$PM" catalog_of "$PM_REPO")"
+assert_contains "ENKINEX_PM_ROOT alone lights up project_state" "$PM_CATALOG" 'project_state'
+
+# Pointing at a sibling that has no folder for this repo must stay silent —
+# otherwise every repo in the workspace acquires the tool the moment one does.
+NOPLAN="$(mktemp -d)/enkinex-unplanned"; mkdir -p "$NOPLAN"
+[ "$(ENKINEX_PM_ROOT="$PM" catalog_of "$NOPLAN")" = "[]" ] &&
+    ok "a repo with no folder in the sibling still gets an empty catalog" ||
+    no "a repo with no folder in the sibling still gets an empty catalog" \
+       "got $(ENKINEX_PM_ROOT="$PM" catalog_of "$NOPLAN")"
+
 section "tool calls"
-OUT="$(rpc "$ROOT" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_state","arguments":{}}}')"
+CALL='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_state","arguments":{}}}'
+OUT="$(rpc "$ROOT" "$CALL")"
 assert_contains "project_state returns content" "$OUT" '"content"'
-assert_contains "project_state finds the loop plan" "$OUT" 'plan/opencode/loop.md'
+# This repo keeps architecture/; its plans moved out. Assert on what it still
+# owns, so the case survives the next thing that moves.
+assert_contains "project_state finds this repo's ADRs" "$OUT" 'architecture/0002'
 [ "$(jq_field 3 result.isError <<<"$OUT")" = "false" ] && ok "project_state is not an error" ||
     no "project_state is not an error"
+
+PM_OUT="$(ENKINEX_PM_ROOT="$PM" rpc "$PM_REPO" "$CALL")"
+assert_contains "project_state finds the sibling's active plan"    "$PM_OUT" '01-fixture.md'
+assert_contains "it carries the plan's status line"                "$PM_OUT" 'Status'
+assert_contains "completed plans are reported separately"          "$PM_OUT" '02-shipped.md'
+# A bare `plan/…` would read as a path in the repo the agent is standing in.
+assert_contains "sibling paths are prefixed with the sibling"      "$PM_OUT" "$(basename "$PM")/plan/enkinex-fixture"
+
+# The empty answer must name the cause: no ENKINEX_PM_ROOT is a different
+# problem from a sibling with nothing in it, and they have different fixes.
+EMPTY_OUT="$(rpc "$EMPTY" "$CALL")"
+assert_contains "an empty repo is told the tool is unavailable" "$EMPTY_OUT" 'Unknown tool'
 
 section "a tool call outliving stdin still answers"
 # Regression: the server used to exit on stdin EOF, killing an in-flight child

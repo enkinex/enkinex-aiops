@@ -66,8 +66,10 @@
   // context7 works unauthenticated at basic rate limits; add an
   // "Authorization: Bearer …" header from context7.com/dashboard if throttled.
   // `enkinex` is the local server carrying Phase 4's three tools. Its catalog
-  // is derived from the repo it runs in — no kcl.mod means no KCL tools, no
-  // plan/ means no project_state — so an unrelated repo pays nothing.
+  // is derived from the repo it runs in — no kcl.mod means no KCL tools, and
+  // nothing to summarise means no project_state — so an unrelated repo pays
+  // nothing. Plans live in a private sibling now; project_state reaches for
+  // them only when ENKINEX_PM_ROOT is set. See mcp/README.md.
   "mcp": {
     "enkinex": {
       "type": "local",
