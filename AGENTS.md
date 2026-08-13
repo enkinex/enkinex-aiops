@@ -34,18 +34,29 @@ every sibling; it writes no product code itself.
 | `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
 | `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
 | `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
-| `tests/` | **Golden-set regression** over the executable governance artefacts — 205 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 223 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
 | `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
-| `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing. See `mcp/README.md`. |
+| `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing; `project_state` reaches the private planning sibling only when `ENKINEX_PM_ROOT` is set. See `mcp/README.md`. |
 | `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |
 | `scripts/ledger.sh` | Cost snapshot writer; warns while the OpenRouter key has no spend limit. |
 | `scripts/opencode-headless.sh` | Launcher for unattended runs (`just headless <repo> …`); documents why the headless profile exists and how it is delivered. |
 | `opencode/` | Executable-artefact sources: `agent/` (10 agents — 5 github workflow + 5 loop), `command/` (`/ci-*` chain); later `tools/`, `plugin/`, `skills/` (loop.md Phase 4). Synced to siblings' `.opencode/`. Note `tools` is plural: opencode never reads `.opencode/tool`. |
 | `.opencode/` | **Symlinks only** (`agent`, `command` → `../opencode/…`) so the sources are live in this repo without duplication. |
-| `plan/` | Plans: `opencode/loop.md` (v0.2.0, Phases 0–7 — complete, awaiting PR landing), `opencode/harness-and-dogfooding.md` (successor: org governance & branch protection → harness pending tasks → OKF dogfooding → Databricks dogfooding), `opencode/benchmark-enkinex-databricks.md` (T0–T8). Finished plans move to `plan/done/`. |
-| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution. |
-| `discovery/` | Discovery docs feeding plans; latest: `opencode/migration.md`. |
-| `.prompts/` | Legacy YAML task specs — porting source for `.opencode/command/` and `loop/tasks/` (loop.md Phases 2/5); removed once ported. |
+| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution. **The only planning surface left in this repo.** |
+
+### Planning lives elsewhere
+
+`plan/`, `discovery/` and `.prompts/` are gone from this repo. Planning is
+centralised in the private sibling `../enkinex-pm/`, one folder per
+repository — this repo's is `../enkinex-pm/plan/enkinex-aiops/`, with the
+five relocated documents under its `refactor/`. A repo with no local `plan/`
+is correct, not misconfigured.
+
+Two consequences worth knowing before you act on them. Paths into
+`../enkinex-pm/` resolve only for someone holding that clone, which is why
+`README.md` — written for a public reader — names no path into it. And
+`project_state` reads those plans only when `ENKINEX_PM_ROOT` is set; unset,
+it reports this repo's ADRs and nothing more (`mcp/README.md`).
 
 ## Workflow (locked)
 
@@ -60,22 +71,22 @@ every sibling; it writes no product code itself.
 
 ## Current state
 
-- v0.2.0 — opencode + OpenRouter agent loop (`plan/opencode/loop.md`),
+- v0.2.0 — opencode + OpenRouter agent loop (`../enkinex-pm/plan/enkinex-aiops/refactor/loop.md`),
   Phases 0–6 done. Phase 7 dogfooding is partial: proven against
   `enkinex-okf`, blocked in `enkinex-odcs` by a loop hang tracked in
-  `plan/opencode/harness-and-dogfooding.md` §2.1.
+  `../enkinex-pm/plan/enkinex-aiops/refactor/harness-and-dogfooding.md` §2.1.
 - **This repository was recreated from a clean root commit on 2026-08-06**
   and published. The previous forty-commit history carried agent-memory and
   task-spec files describing a private system; the disposition is recorded in
-  the successor plan §1.3. The decisions survive in `architecture/`, `plan/`
-  and this file; the `Refs:` chain does not.
+  the successor plan §1.3. The decisions survive in `architecture/`, in the
+  relocated plans and this file; the `Refs:` chain does not.
 - **Successor-plan Phase 1 is applied.** Ten public repositories, all with
   `main` protected: merge restricted, code-owner review, linear history, and
   a required `test` check on the seven that have code. `v*` tags protected on
   the versioned libraries and tutorials; secret scanning, push protection and
   Dependabot alerts on; 2FA required org-wide; four teams at `write`. Applied
   and drift-checked by `governance/apply-governance.sh` in the private
-  `enkinex-lab`, which discovers public repos rather than listing them.
+  `enkinex-pm`, which discovers public repos rather than listing them.
 - **The shared layer is live in all six repos** — the five library and
   website adoption PRs merged 2026-08-06. `enkinex-ossie` joined last: it had
   never been in `REPOS`, so the sync had never targeted it.
@@ -83,7 +94,8 @@ every sibling; it writes no product code itself.
   a decision not a blocker); `enkinex-knowledge-base` is empty until Phase 3;
   retrospective credential scans are owed on `enkinex-databricks` and
   `enkinex-odps-tutorial`, both published before a scan was run.
-- Known-open harness items are §2 of the successor plan: the odcs loop hang,
+- Known-open harness items are §2 of
+  `../enkinex-pm/plan/enkinex-aiops/refactor/harness-and-dogfooding.md`: the odcs loop hang,
   free-tier viability, agent-output evals, OpenRouter model-level fallback,
   and the ledger's spend-limit check.
 - opencode is the primary agent runtime; Claude Code and Codex are supported

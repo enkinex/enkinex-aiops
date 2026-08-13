@@ -37,10 +37,15 @@ Nothing is ever written to `$HOME`.
 
 ## Repo map
 
-`AGENTS.md` has the full map and the current state of the migration. Plans live
-in `plan/`, one-way decisions in `architecture/`, and the analysis feeding both
-in `discovery/` — start with
-[`discovery/opencode/harness-agnostic-review.md`](discovery/opencode/harness-agnostic-review.md).
+`AGENTS.md` has the full map and the current state of the migration. One-way
+decisions are recorded as ADRs in [`architecture/`](architecture) — start with
+[ADR-0002](architecture/0002-opencode-adoption-github-posture.md), which sets
+the GitHub posture everything else follows from.
+
+Planning is not in this repository. Plans and the analysis feeding them live in
+a private sibling, one folder per repo, so the ADRs here cite documents that
+are not published. That is a deliberate trade and not an oversight: the
+decisions are public, the drafting is not.
 
 ## Working here
 
