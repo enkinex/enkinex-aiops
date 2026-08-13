@@ -32,8 +32,11 @@ This agent is part of the CI/CD workflow definition (ADR-0004). Only runs on exp
    "Refusing to run: origin is not under github.com:enkinex/." and take **no further action**
    (no branch, no commit, no push, no questions — just abort).
 2. Detect the current branch slug; confirm it matches `<type>/<short-slug>`.
-3. Locate the `plan/` section this branch delivers. **Refuse to open without a plan reference**
-   unless the user gives an explicit opt-out justification (recorded in the PR body).
+3. Locate the task this branch delivers in `../enkinex-pm/plan/<repo>/`. Planning is centralised
+   and private: this repo having no local `plan/` is correct, not a defect. **Refuse to open
+   without a plan reference** unless the user gives an explicit opt-out justification (recorded in
+   the PR body). If the `enkinex-pm` clone is not beside this one, say so and ask — never guess a
+   task ID, and never fall back to a local path.
 
 ## PR rules (locked)
 
@@ -48,7 +51,7 @@ This agent is part of the CI/CD workflow definition (ADR-0004). Only runs on exp
 
 ## Plan reference
 
-Refs: plan/<plan-file>.md#<section-anchor>
+Refs: <TASK-ID>
 
 ## Test plan
 
@@ -58,6 +61,13 @@ Refs: plan/<plan-file>.md#<section-anchor>
 
 <opt-out justifications, follow-ups, or "None">
 ```
+
+- `<TASK-ID>` is the stable task ID — `AIOPS-08`, `MGR-16`, `PM-04` — its project prefix plus its
+  file number, resolving to `../enkinex-pm/plan/<repo>/<NN>-<slug>.md`. Use the ID, not the path:
+  the ID survives a file being renamed or re-numbered, and the path encodes a checkout layout into
+  permanent history.
+- When the branch advances no task, `No-Plan-Ref: <reason>` replaces the whole footer. That is the
+  correct footer, not a bypass, and it is what the `commit-msg` hook already accepts.
 
 ## Action
 

@@ -41,7 +41,13 @@ This agent is part of the CI/CD workflow definition (ADR-0004). The rules live h
 ```
 
 - `type` ∈ `feat · fix · refactor · docs · chore · test · infra · proj` (`proj` reserved for
-  plan/architecture/discovery edits).
+  planning and `architecture/` edits).
+- **`proj` is decided by what the branch changes, not by what the change is about.** Planning is
+  centralised in `enkinex-pm`, so a plan for this repo's code is written in *that* checkout: the
+  `proj` branch belongs there, beside the plan file it edits. A branch here that delivers a plan
+  is typed by what it touches here — `feat`, `refactor`, `docs` — and names the task in its
+  `Refs:` footer. The two are separate branches in separate repositories, which is the intended
+  consequence of centralising planning, not an accident to work around.
 - `short-slug` — kebab-case, ≤6 words, imperative; describes the change, not the repository.
   Examples: `feat/output-port-retry-policy`, `chore/contributor-tooling`.
 - **Do not prefix the slug with the repo name.** The branch already lives in the repo; `odcs-` in

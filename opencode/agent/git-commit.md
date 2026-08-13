@@ -1,5 +1,5 @@
 ---
-description: Use when committing changes in an enkinex repo. Enforces the locked Conventional Commits subset, the Refs: footer pointing at plan/, explicit-path staging, and the secret scan. Aborts on non-enkinex remotes.
+description: Use when committing changes in an enkinex repo. Enforces the locked Conventional Commits subset, the Refs: footer naming the task delivered, explicit-path staging, and the secret scan. Aborts on non-enkinex remotes.
 mode: subagent
 model: openrouter/moonshotai/kimi-k2
 tools:
@@ -40,7 +40,7 @@ This agent is part of the CI/CD workflow definition (ADR-0004). The rules live h
 
 <body — optional, WHY not what, wrapped ~80 cols>
 
-Refs: plan/<plan-file>.md#<section-anchor>
+Refs: <TASK-ID>
 Co-Authored-By: <model that produced the change>
 ```
 
@@ -50,9 +50,18 @@ Co-Authored-By: <model that produced the change>
   `fix(trust):`. **Never the repo name**: `feat(odcs):` in enkinex-odcs adds nothing the
   repository does not already say, and the `commit-msg` hook rejects it. Default to no scope,
   which is what every pre-existing commit in these repos and every CONTRIBUTING.md uses.
-- `Refs:` is **required** when the commit advances a plan section — locate the matching `plan/`
-  file and section. If none applies, ask the user for an explicit opt-out and record the reason in
-  the body, not as a footer.
+- `Refs:` is **required** when the commit advances a task, and its value is the stable **task ID**
+  — `AIOPS-08`, `MGR-16`, `PM-04` — a project prefix plus a file number. It resolves to
+  `../enkinex-pm/plan/<repo>/<NN>-<slug>.md`; locate that file to confirm the ID before using it.
+  Never write the path itself: the ID survives a rename or re-numbering, and a sibling-relative
+  path encodes one machine's checkout layout into permanent history.
+- **Planning is centralised and private.** This repo having no local `plan/` is correct, not
+  misconfigured — do not create one, and do not read a `Refs:` target from the repo you are
+  committing in. If the `enkinex-pm` clone is not beside this one, ask rather than guessing an ID.
+- When the commit advances no task, use `No-Plan-Ref: <reason>` in place of `Refs:`. The
+  `commit-msg` hook accepts it and it is the **correct footer, not a bypass** — repo hygiene,
+  tooling and dependency bumps legitimately advance no plan. Do not invent a task ID to satisfy
+  the hook, and do not bury the reason in the body where the footer belongs.
 - **Never** `Closes:` / `Fixes:` / `Resolves:` — there are no GitHub Issues in enkinex repos.
 
 ## Action

@@ -139,6 +139,115 @@ for name in build-kcl docs-writer review-standard plan-author; do
     fi
 done
 
+section "planning is centralised — no agent teaches a repo-local plan/"
+# AIOPS-02 moved planning into the private enkinex-pm sibling, but the workflow
+# agents encoded the old layout as *behaviour*: pr-open refused to open a PR
+# without a plan reference and pr-review checked that it resolved to a real
+# local `plan/` section. In a repo that no longer has one, those two agents
+# blocked the workflow they exist to run. The gate is kept below; what moved is
+# its target, so these cases assert both halves — still refuses, resolves
+# centrally.
+for name in pr-open pr-review git-commit plan-author; do
+    f="$AGENT_DIR/$name.md"
+    [ -f "$f" ] || { no "$name exists" "missing agent definition"; continue; }
+    if grep -Fq 'enkinex-pm/plan/' "$f"; then
+        ok "$name resolves plans in enkinex-pm"
+    else
+        no "$name resolves plans in enkinex-pm" \
+            "it must name ../enkinex-pm/plan/<repo>/, not a local plan/"
+    fi
+done
+
+# The stages that no longer exist. A negative statement about them is fine in
+# prose; a path an agent could act on is not.
+if grep -rn 'plan/done\|discovery/' "$AGENT_DIR" "$CMD_DIR" >/dev/null 2>&1; then
+    no "no agent names plan/done/ or discovery/" \
+        "$(grep -rln 'plan/done\|discovery/' "$AGENT_DIR" "$CMD_DIR" | tr '\n' ' ')"
+else
+    ok "no agent names plan/done/ or discovery/"
+fi
+
+# The refusal is the point of the gate and must survive the retarget: an agent
+# that stopped asking for a plan reference would be a regression, not a fix.
+# Matched against the file with newlines collapsed: these are prose documents
+# wrapped at ~100 columns, so a phrase that fits on one line today straddles two
+# after the next edit. A case that fails on reflow trains you to reflow for the
+# test rather than for the reader.
+unwrapped() { tr '\n' ' ' <"$1" | tr -s ' '; }
+
+if unwrapped "$AGENT_DIR/pr-open.md" | grep -Fq 'Refuse to open without a plan reference'; then
+    ok "pr-open still refuses without a plan reference"
+else
+    no "pr-open still refuses without a plan reference" \
+        "AIOPS-08 moves the target of this gate; it does not remove the gate"
+fi
+
+# No-Plan-Ref is the correct footer for a commit that advances no plan, and the
+# hook has always accepted it. Undocumented, it reads as a bypass and gets used
+# like one — or a task ID gets invented to satisfy the hook, which is worse.
+if grep -Fq 'No-Plan-Ref:' "$AGENT_DIR/git-commit.md"; then
+    ok "git-commit documents the No-Plan-Ref escape hatch"
+else
+    no "git-commit documents the No-Plan-Ref escape hatch" \
+        "the hook accepts it; an undocumented escape hatch is used blindly"
+fi
+
+# plan-author now writes into a different git repository than the one it is
+# invoked from. Staging across that boundary is the failure mode.
+if grep -Fq 'Never stage or commit across the boundary' "$AGENT_DIR/plan-author.md"; then
+    ok "plan-author states the cross-repo boundary"
+else
+    no "plan-author states the cross-repo boundary" \
+        "it writes into ../enkinex-pm/, a separate history from the code"
+fi
+
+section "the taught Refs: footer is one the commit-msg hook accepts"
+# A template the hook rejects is worse than no template: the agent produces it,
+# the hook refuses it, and the loop stalls with the agent's own instructions as
+# the cause. So this does not re-implement the grammar — it renders the footer
+# each agent teaches and runs it through the real hook.
+taught_refs() { grep -m1 '^Refs: ' "$1" | sed 's/<TASK-ID>/AIOPS-08/'; }
+
+GC_REFS="$(taught_refs "$AGENT_DIR/git-commit.md")"
+PO_REFS="$(taught_refs "$AGENT_DIR/pr-open.md")"
+
+if [ -n "$GC_REFS" ] && [ "$GC_REFS" = "$PO_REFS" ]; then
+    ok "git-commit and pr-open teach the same footer"
+else
+    no "git-commit and pr-open teach the same footer" \
+        "git-commit: '${GC_REFS:-<none>}' vs pr-open: '${PO_REFS:-<none>}'"
+fi
+
+case "$GC_REFS" in
+    *plan/*) no "the taught footer is not a repo-local path" \
+        "'$GC_REFS' points into a plan/ directory the repo does not have" ;;
+    *) ok "the taught footer is not a repo-local path" ;;
+esac
+
+# The grammar itself is AIOPS-10's decision; AIOPS-08 adopts its recommended
+# form (the stable task ID) so the agents teach something the hook accepts
+# today. If AIOPS-10 settles on a different shape, this case is what says so.
+if printf '%s' "$GC_REFS" | grep -Eq '^Refs: [A-Z]+-[0-9]+$'; then
+    ok "the taught footer is a stable task ID"
+else
+    no "the taught footer is a stable task ID" "got: '$GC_REFS'"
+fi
+
+REPO="$(new_repo "$ROOT/githooks")"
+trap 'rm -rf "$REPO"' EXIT
+if try_commit "$REPO" "feat: probe the footer the agents teach"$'\n\n'"$GC_REFS"; then
+    ok "commit-msg accepts the footer git-commit teaches"
+else
+    no "commit-msg accepts the footer git-commit teaches" \
+        "the hook rejected '$GC_REFS' — the agents would stall every commit"
+fi
+if try_commit "$REPO" "chore: probe the documented escape hatch"$'\n\n'"No-Plan-Ref: repo hygiene"; then
+    ok "commit-msg accepts the No-Plan-Ref git-commit documents"
+else
+    no "commit-msg accepts the No-Plan-Ref git-commit documents" \
+        "git-commit documents a footer the hook refuses"
+fi
+
 section "github workflow agents stay read-only where it matters"
 for name in git-branch git-commit pr-open pr-review pr-land; do
     f="$AGENT_DIR/$name.md"

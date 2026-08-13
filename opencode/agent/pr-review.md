@@ -38,8 +38,14 @@ Frontier-tier reviewer (ADR-0004 workflow definition). Read-only: never commits,
    (no branch, no commit, no push, no questions — just abort).
 2. Status: `gh pr view --json state,statusCheckRollup,reviews,mergeable` and `gh pr checks`.
 3. Conventions: title matches lead commit subject; body has Summary / Plan reference / Test plan /
-   Notes; the plan reference resolves to a real `plan/` section; commit footers carry `Refs:` and
-   no `Closes:`/`Fixes:`/`Resolves:`.
+   Notes; the plan reference is a task ID that resolves to a file under
+   `../enkinex-pm/plan/<repo>/`, or a `No-Plan-Ref:` carrying a reason; commit footers carry
+   `Refs:` and no `Closes:`/`Fixes:`/`Resolves:`.
+   - Planning is centralised and private. A repo with no local `plan/` is correct — never report
+     its absence as a finding, and never ask for a `plan/` path in this repo.
+   - If `../enkinex-pm/` is not readable from here, report the reference as **unverified** with
+     that reason. An ID you could not resolve is not the same finding as an ID that resolves to
+     nothing, and collapsing the two makes a missing clone look like a bad PR.
 4. Diff quality (`gh pr diff`): correct module placement, docstring coverage, no secrets, no
    unrelated changes, generated files in sync (e.g. `just docs` output committed).
 
