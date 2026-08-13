@@ -52,12 +52,27 @@ Codex each call it through a pointer-only adapter.
 
 ### Project lifecycle
 
-Repos plan at the root level: `plan/` (active plans; finished work moves
-to `plan/done/`), `discovery/` (analysis feeding plans), `architecture/`
-(ADRs). ADRs record one-way decisions only — procedural workflows are
-defined as executable artefacts (agents, commands, loop tasks, plugin
-hooks), never as ADR prose (ADR-0004, executable governance). Commit
-`Refs:` footers point at the delivered `plan/` section.
+**Planning is centralised and private.** Plans live in the sibling
+`enkinex-pm`, one folder per repository — `../enkinex-pm/plan/<repo>/`
+from a repo checkout — as small numbered task files. **A repo with no
+local `plan/` is correct, not misconfigured**; do not create one, and do
+not plan in the repo you are editing.
+
+There is no `discovery/` stage. Analysis feeding a plan is an input to
+planning and belongs in `enkinex-pm`, not beside the code.
+
+`architecture/` stays at each repo root. ADRs record one-way decisions
+only — procedural workflows are defined as executable artefacts (agents,
+commands, loop tasks, plugin hooks), never as ADR prose (ADR-0004,
+executable governance). A repo's ADRs are public with its code, so an ADR
+citing a plan cites something the reader may not be able to open: say so
+at the citation rather than leaving a path that resolves for nobody.
+
+Commit `Refs:` footers point at the plan the commit delivers, which now
+resolves only for someone holding the `enkinex-pm` clone — a cost this
+org has accepted deliberately. Use `No-Plan-Ref:` when a commit advances
+no plan; `commit-msg` accepts it and it is the correct footer, not a
+bypass.
 
 ### Model tiers (OpenRouter)
 
