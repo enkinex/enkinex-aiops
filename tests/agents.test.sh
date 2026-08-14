@@ -112,6 +112,27 @@ for f in "$CMD_DIR"/*.md; do
     fi
 done
 
+section "no agent is pinned to the free tier"
+# AIOPS-12. The free tier failed three ways, and only the first is a prompt
+# problem: it did not finish a broad exploration step in 10 minutes (twice), it
+# spends its output budget reasoning before it answers, and it returns 502
+# ResourceExhausted from the upstream provider intermittently. A step that
+# never returns is the most expensive failure an unattended run has.
+#
+# The rule is stated in AGENTS.shared.md, which is prose. This is what makes it
+# true — a `:free` pin is cheap to add and its cost only shows up in a loop run
+# nobody is watching.
+for f in "$AGENT_DIR"/*.md; do
+    name="$(basename "$f" .md)"
+    model="$(fm_value "$f" model)"
+    case "$model" in
+        *:free)
+            no "$name is not pinned to a free model" \
+                "AIOPS-12 removed the last free pin; re-pinning is a PR with new evidence" ;;
+        *) ok "$name is not pinned to a free model" ;;
+    esac
+done
+
 section "no agent re-opens a blanket 'just *'"
 # The baseline enumerates just recipes because a Justfile runs arbitrary shell.
 # Agent permissions take precedence over the baseline, so one blanket rule in

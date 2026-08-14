@@ -23,10 +23,10 @@ expect:
     - docs/conformance.md
 
 steps:
-  # Free tier, deliberately narrow. A broad "read every module" prompt did not
-  # finish here in 10 minutes on the free model, twice. That is the evidence
-  # AIOPS-12 weighs in deciding what the free tier is for; until it lands, keep
-  # this prompt bounded.
+  # Deliberately narrow, and still worth keeping so after AIOPS-12. The two
+  # 10-minute non-finishes that moved this agent off the free tier were on a
+  # broad "read every module" prompt, and a bounded prompt is cheaper on any
+  # tier — the re-pin removed the failure mode, not the reason for the shape.
   - agent: explore-enkinex
     prompt: |
       Use glob to list the *.k files in this repo. Do not read them.
