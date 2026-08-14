@@ -17,7 +17,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG="$ROOT/loop/loop-log.md"
+# Overridable so the regression suite never appends to the committed ledger,
+# the same reason scripts/loop.sh takes LOOP_RUNLOG.
+LOG="${LEDGER_LOG:-$ROOT/loop/loop-log.md}"
 
 : "${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is not set — the ledger reads OpenRouter usage}"
 
@@ -36,6 +38,42 @@ read -r total daily weekly monthly limit remaining < <(
                      d.limit_remaining === null ? "-" : n(d.limit_remaining)].join(" "));
       });'
 )
+
+# ── the second spend control: the credit balance ───────────────────────────
+#
+# AIOPS-15. The warning below used to fire whenever /api/v1/key reported no
+# per-key limit, and it had been firing on every run since 2026-08-04 while a
+# spend limit WAS in force — set at the workspace level, where that endpoint
+# cannot see it. An alert that is wrong every time is read past, and then the
+# true one is missed with it.
+#
+# The workspace guardrail itself stays invisible and that is settled, not
+# pending: /api/v1/keys, /api/v1/guardrails and /api/v1/keys/guardrails all
+# answer 401 "Invalid management key" to a normal API key. Reading it would
+# mean provisioning a management key and holding a second, more powerful
+# secret on every machine that runs the ledger — a worse trade than the
+# warning it would fix.
+#
+# /api/v1/credits needs no such key, and on a prepaid account the balance is
+# itself a hard ceiling: spend stops when it reaches zero. So the ledger no
+# longer asks "is there a per-key limit", which was never the question, but
+# "is anything at all stopping this key" — and a finite balance is.
+credits_json="$(curl -s -m 20 -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+    https://openrouter.ai/api/v1/credits || true)"
+read -r credits_total credits_used < <(
+    printf '%s' "$credits_json" | node -e '
+      let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+        let d = {};
+        try { d = JSON.parse(s).data || {}; } catch { /* unreadable is "-" */ }
+        const n = v => (v === null || v === undefined || isNaN(+v) ? "-" : (+v).toFixed(4));
+        console.log([n(d.total_credits), n(d.total_usage)].join(" "));
+      });' 2>/dev/null || echo "- -"
+)
+credits_left="-"
+if [ "$credits_total" != "-" ] && [ "$credits_used" != "-" ]; then
+    credits_left="$(node -e 'const [a,b]=process.argv.slice(1);console.log(((+a)-(+b)).toFixed(4))' \
+        "$credits_total" "$credits_used")"
+fi
 
 # Best-effort cross-check. A parse failure must not fail the ledger.
 #
@@ -82,17 +120,27 @@ printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
 echo "ledger: appended to ${LOG#"$ROOT"/}"
 printf '  OpenRouter total $%s · daily $%s · monthly $%s\n' "$total" "$daily" "$monthly"
 
-if [ "$limit" = "none" ]; then
+if [ "$limit" != "none" ]; then
+    printf '  spend ceiling: per-key limit $%s\n' "$limit"
+elif [ "$credits_left" != "-" ]; then
+    # A balance is a real ceiling, so this is not a warning. It is reported
+    # every run because it is the number that decides when work stops, and
+    # because it is the only ceiling the ledger can actually see.
+    printf '  spend ceiling: $%s credits remaining (no per-key limit)\n' "$credits_left"
+else
     cat >&2 <<'WARN'
 
-  WARNING: this OpenRouter key has NO spend limit.
-  Per-key limits are the only cost control that holds regardless of which
-  harness spends the money — opencode, Claude Code, Codex or a stray script.
-  Set one at openrouter.ai/settings/keys, or provision per-tier keys via the
-  management API.
+  WARNING: nothing readable is stopping spend on this OpenRouter key.
+  There is no per-key limit, and the credit balance could not be read — so
+  neither control this ledger can see is in force. A cost control holds
+  regardless of which harness spends the money: opencode, Claude Code, Codex
+  or a stray script.
 
-  NOTE: a workspace-level limit (OpenRouter Guardrails) is NOT visible here —
-  /api/v1/key exposes only the per-key limit. If one is set, this warning is a
-  false positive. Tracked as AIOPS-15.
+  Set a per-key limit at openrouter.ai/settings/keys.
+
+  A workspace-level Guardrail would also hold, but it is invisible here — the
+  management endpoints answer 401 to a normal API key — so it cannot silence
+  this. That is deliberate: reading it would mean holding a second, more
+  powerful secret on every machine that runs the ledger.
 WARN
 fi
