@@ -91,11 +91,26 @@ footers are not errors — the hook validates only the message being written.
 
 | Tier | Models | Use |
 |---|---|---|
-| Free | `:free` suffixed IDs | explore/triage, formatting, titles |
-| Mid | `moonshotai/kimi-k2`, `deepseek/deepseek-v3.2`, `google/gemini-3.5-flash` | code edits, docs, tests |
+| Free | `:free` suffixed IDs | **interactive, bounded lookups only** — never an agent in the loop |
+| Mid | `moonshotai/kimi-k2`, `deepseek/deepseek-v3.2`, `google/gemini-3.5-flash` | code edits, docs, tests, exploration |
 | Frontier | `moonshotai/kimi-k3` (default), `anthropic/claude-opus-5`, `openai/gpt-5.6` family | plans, reviews, ADRs |
 
 Do not switch tiers silently; model pins change only via PR.
+
+**No agent is pinned to the free tier, and that is the decision, not an
+oversight** (AIOPS-12). The row above said "explore/triage", and the one agent
+that took it at its word could not do the job: it failed to finish a broad
+exploration step in 10 minutes on two occasions, it spends its output budget
+reasoning before it answers, and it returns `502 ResourceExhausted` from the
+upstream provider often enough to have done so during unrelated work. The
+first is a prompt problem; the other two are not, and a step that never
+returns is the most expensive failure an unattended run has — nobody is
+watching, and it has to be killed.
+
+Free is therefore for questions **you** ask, bounded, with a human reading the
+answer and nothing depending on it arriving. Anything the loop runs is mid or
+frontier. The evidence sits at the pin in `explore-enkinex.md`, so re-pinning
+to free means arguing with it rather than rediscovering it.
 
 ### Code standards
 
