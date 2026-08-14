@@ -129,8 +129,24 @@ run_step() {
     prompt="${prompt//\{\{task\}\}/$TASK}"
     echo
     echo "── $label · @$agent ──"
+    # `</dev/null` is load-bearing, and its absence was the odcs "hang".
+    #
+    # `opencode run` blocks on stdin when stdin is not a TTY and never reaches
+    # EOF — it produces NO output at all and waits forever, which reads exactly
+    # like a model that never answered. Interactively it looks fine, because a
+    # terminal's stdin is a TTY; the moment the runner is driven from anything
+    # non-interactive (CI, cron, nohup, an agent session) every step hangs on
+    # step 1 and has to be killed. Measured against enkinex-odcs: no output
+    # after 120s inherited, versus 22s to completion with stdin closed, through
+    # this same `2>&1 | tee` pipeline.
+    #
+    # Closing it is also the honest posture rather than a workaround. The
+    # headless profile carries no `ask` rules precisely so that nothing is ever
+    # waiting to be answered (see the header, and scripts/opencode-headless.sh);
+    # a runner that leaves stdin open is offering an input channel it has
+    # already promised never to use.
     OPENCODE_CONFIG_CONTENT="$CONFIG_CONTENT" \
-        opencode run --dir "$REPO" --agent "$agent" "$prompt" 2>&1 | tee "$STEP_LOG"
+        opencode run --dir "$REPO" --agent "$agent" "$prompt" </dev/null 2>&1 | tee "$STEP_LOG"
     local rc="${PIPESTATUS[0]}"
     # Strip ANSI and opencode's tool-trace glyphs so the next step receives
     # prose rather than terminal decoration.

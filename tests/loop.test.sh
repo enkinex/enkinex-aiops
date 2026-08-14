@@ -40,6 +40,9 @@ while [ "$#" -gt 0 ]; do
     *) prompt="$1"; shift ;;
   esac
 done
+# Stands in for the real binary's blocking read on stdin. Reaches EOF at once
+# when the caller closed stdin; blocks forever when it inherited an open one.
+[ "${STUB_READ_STDIN:-0}" = "1" ] && cat >/dev/null
 mkdir -p "$STUB_OUT"
 printf '%s' "$prompt" > "$STUB_OUT/prompt.$agent"
 echo "STUB ran agent=$agent"
@@ -185,6 +188,41 @@ steps:
 EOF
 rm -rf "$STUB_OUT"; OUT="$(STUB_RC=3 run_loop stepfail)"
 assert_contains "a failing step is recorded" "$OUT" "step-failed"
+
+section "a step never inherits a blocking stdin"
+# AIOPS-11. `opencode run` blocks on stdin when stdin is not a TTY and never
+# reaches EOF: no output, forever. Interactively it is invisible, because a
+# terminal's stdin is a TTY — so this only bites where nobody is watching, which
+# is every unattended run the runner exists for.
+#
+# The case gives loop.sh a stdin that is open and will never deliver EOF, and a
+# stub that reads stdin before answering. If the runner passes that stdin down,
+# the stub blocks and the run has to be killed — the exact reported symptom.
+spec stdinblock <<EOF
+task: t
+repo: $REL
+gate: "true"
+expect:
+  changed: false
+steps:
+  - agent: build-kcl
+    prompt: x
+EOF
+FIFO="$WORK/never-eof"
+mkfifo "$FIFO"
+# Held open read-write, so the reader never sees EOF and never gets data.
+exec 9<>"$FIFO"
+rm -rf "$STUB_OUT"
+OUT="$(cd "$ROOT" && STUB_READ_STDIN=1 timeout 20 bash scripts/loop.sh "__test-stdinblock" 2>&1 <&9)"
+RC=$?
+exec 9>&-
+if [ "$RC" = 124 ]; then
+    no "a step completes with a never-EOF stdin" \
+       "the runner passed its own stdin to opencode; every unattended run hangs on step 1"
+else
+    ok "a step completes with a never-EOF stdin"
+fi
+assert_contains "the step actually ran" "$OUT" "OUTPUT-MARKER-build-kcl"
 
 section "gate failure triggers exactly one repair"
 spec repair <<EOF
