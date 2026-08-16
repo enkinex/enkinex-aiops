@@ -18,7 +18,7 @@ adapters that carry no rules of their own.
 | [enkinex-knowledge-base](../enkinex-knowledge-base) | KbDev. Public and empty |
 | [enkinex-odcs-tutorial](../enkinex-odcs-tutorial) | Worked ODCS example, pinned to the library version it teaches |
 | [enkinex-odps-tutorial](../enkinex-odps-tutorial) | Worked ODPS example, pinned to the library version it teaches |
-| [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Private; its pre-publication scan found no Cloudflare or analytics secrets |
+| [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Published |
 | [.github](../.github) | Org profile. WebDev; protection but no CI — a profile README has nothing to gate |
 
 ## Repo map
