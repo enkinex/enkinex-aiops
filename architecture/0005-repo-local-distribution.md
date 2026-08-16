@@ -99,5 +99,7 @@ installation there has been reverted to a pristine stub).
   boundary).
 - Empirical config-loading check: opencode 1.18.11 `--print-logs`,
   2026-08-03 (load order and override semantics).
-- Plan: `plan/opencode/loop.md` (§4 Distribution model, Phase 1
-  status).
+- Plan: `enkinex-pm/plan/enkinex-aiops/refactor/loop.md` §4 (distribution
+  model) and its Phase 1 status (private). A historical record held as
+  legacy, not current planning — see ADR-0002's References for what that
+  means and why it is named rather than linked.
