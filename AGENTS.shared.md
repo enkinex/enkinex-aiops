@@ -15,7 +15,8 @@ configuration surfaces (Databricks Asset Bundles) as typed, modular code.
   imperative (e.g. `feat/output-port-retry-policy`).
 - Commits: Conventional Commits subset `<type>: <imperative ≤72>`,
   `Refs: <TASK-ID>` footer naming the task delivered, no `Closes:`/
-  `Fixes:`/`Resolves:` (there are no GitHub Issues).
+  `Fixes:`/`Resolves:` — issues are closed by hand after the squash merge,
+  not as a side effect of a commit message (ADR-0006).
 - **No repo-name scope.** A scope is optional and names a *module inside
   this repo* (`catalog`, `quality`, `trust`, `githooks`), never the repo
   itself: `feat(odcs):` inside enkinex-odcs says nothing the repository
@@ -23,7 +24,9 @@ configuration surfaces (Databricks Asset Bundles) as typed, modular code.
   are separate repos. The `commit-msg` hook rejects a redundant scope.
 - **Never push, merge, or open PRs unless the user explicitly asks.** The
   iteration ends at a local commit. `gh` CLI is the only GitHub surface
-  (ADR-0002): no GitHub MCP, no Actions, no Issues/Projects/Releases.
+  (ADR-0002): no GitHub MCP, no Actions, no Projects, no Releases.
+  **Issues are open** (ADR-0006): read them freely, creating or editing one
+  is a prompt, and `gh issue delete`/`transfer` are denied outright.
 - Never force-push to `main`; never rewrite history.
 - Before any repo edit: `git fetch origin`, confirm sync with `main`,
   create the branch. Commit at the end of the iteration.
