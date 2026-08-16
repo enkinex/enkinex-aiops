@@ -11,7 +11,11 @@
       "git push*": "deny",
       "git rebase*": "deny",
       "gh pr create*": "deny",
-      "gh pr merge*": "deny"
+      "gh pr merge*": "deny",
+      "gh issue create*": "deny",
+      "gh issue comment*": "deny",
+      "gh issue edit*": "deny",
+      "gh issue*": "deny"
     },
     "question": "deny"
   }

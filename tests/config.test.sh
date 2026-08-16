@@ -45,8 +45,24 @@ fi
 expect_action "$INTERACTIVE" 'git push --force*' deny
 expect_action "$INTERACTIVE" 'git push -f*'      deny
 expect_action "$INTERACTIVE" 'git reset --hard*' deny
-expect_action "$INTERACTIVE" 'gh issue*'         deny
+# ADR-0006 opened Issues per verb. The catch-all deny stays, so a subcommand
+# GitHub adds tomorrow arrives denied rather than inheriting an allow — and
+# `delete`/`transfer` are denied by name as well as by it, because the two
+# that destroy the record should fail a grep, not a precedence rule.
+expect_action "$INTERACTIVE" 'gh issue*'          deny
+expect_action "$INTERACTIVE" 'gh issue delete*'   deny
+expect_action "$INTERACTIVE" 'gh issue transfer*' deny
+expect_action "$INTERACTIVE" 'gh issue view*'     allow
+expect_action "$INTERACTIVE" 'gh issue list*'     allow
+expect_action "$INTERACTIVE" 'gh issue create*'   ask
+expect_action "$INTERACTIVE" 'gh issue comment*'  ask
+expect_action "$INTERACTIVE" 'gh issue edit*'     ask
+# The three surfaces ADR-0006 explicitly did NOT open. Asserted together so a
+# future reversal by analogy fails here rather than in a public repository.
 expect_action "$INTERACTIVE" 'gh workflow*'      deny
+expect_action "$INTERACTIVE" 'gh project*'       deny
+expect_action "$INTERACTIVE" 'gh run*'           deny
+expect_action "$INTERACTIVE" 'gh release*'       deny
 expect_action "$INTERACTIVE" 'kcl *'             allow
 expect_action "$INTERACTIVE" 'just check*'       allow
 expect_action "$INTERACTIVE" 'git commit*'       ask
@@ -77,6 +93,18 @@ expect_action "$HEADLESS" 'git add *'       allow
 expect_action "$HEADLESS" 'git push*'       deny
 expect_action "$HEADLESS" 'gh pr create*'   deny
 expect_action "$HEADLESS" 'gh pr merge*'    deny
+# An unattended run must not file a public artefact in the org's name.
+#
+# Each write verb is denied by NAME, not just by the `gh issue*` catch-all or
+# the base `*` deny. The profile is an overlay, and precedence goes to the more
+# specific pattern — so the baseline's `gh issue create*: ask` outranks a
+# headless `gh issue*: deny` and survives into an unattended run. That is why
+# `gh pr create*` was already listed here, and the `no ask rules remain`
+# assertion below is what caught it when Issues were opened.
+expect_action "$HEADLESS" 'gh issue*'         deny
+expect_action "$HEADLESS" 'gh issue create*'  deny
+expect_action "$HEADLESS" 'gh issue comment*' deny
+expect_action "$HEADLESS" 'gh issue edit*'    deny
 expect_action "$HEADLESS" 'git rebase*'     deny
 
 section "headless profile reaches the loop agents"

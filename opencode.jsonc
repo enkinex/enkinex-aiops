@@ -137,6 +137,8 @@
       "gh pr list*": "allow",
       "gh pr checks*": "allow",
       "gh pr diff*": "allow",
+      "gh issue view*": "allow",
+      "gh issue list*": "allow",
       "gh repo view*": "allow",
       "gh auth status*": "allow",
 
@@ -147,6 +149,11 @@
       "git checkout*": "ask",
       "gh pr create*": "ask",
       "gh pr merge*": "ask",
+      // An issue is a public statement of intent, so it gets `gh pr create`'s
+      // posture rather than a read's (ADR-0006).
+      "gh issue create*": "ask",
+      "gh issue comment*": "ask",
+      "gh issue edit*": "ask",
 
       // destructive git — denied outright. `AGENTS.md` says never force-push
       // and never rewrite history; `ask` gave that rule no mechanical backing
@@ -156,7 +163,12 @@
       "git reset --hard*": "deny",
       "git rebase*": "ask",
 
-      // locked-out GitHub surfaces (ADR-0002: no Issues/Projects/Actions/Releases)
+      // locked-out GitHub surfaces (ADR-0002: no Projects/Actions/Releases;
+      // ADR-0006 opened Issues per verb above). `gh issue*` stays here as the
+      // catch-all: delete and transfer are denied by it, and a subcommand
+      // GitHub adds tomorrow arrives denied rather than inheriting an allow.
+      "gh issue delete*": "deny",
+      "gh issue transfer*": "deny",
       "gh issue*": "deny",
       "gh project*": "deny",
       "gh workflow*": "deny",

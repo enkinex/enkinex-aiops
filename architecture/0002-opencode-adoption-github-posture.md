@@ -5,7 +5,9 @@
 - Deciders: rodrigo@enkinex.com
 - Supersedes: ADR-0001 (gh-CLI-only; record removed in the `.project`
   cleanup — its durable content is absorbed into this ADR)
-- Superseded by: —
+- Superseded by: ADR-0006, **in part** — Decisions 4 and 5, for GitHub
+  Issues only. Everything else here stands, including the no-Actions
+  corollary and the GitHub MCP denial
 
 ## Context
 
@@ -42,9 +44,17 @@ whose MCP and permission models differ.
    no-Actions corollary stands as a hard cost-control rule. CI/CD runs
    locally: the opencode loop runner (`just loop`) *is* the pipeline,
    executing `loop/tasks/github-pr-cycle.yaml` (see ADR-0004).
+   **— Superseded in part by ADR-0006 (2026-08-16): Issues only.** Actions,
+   Projects and Releases remain forbidden and the cost argument for them is
+   restated there. The record is kept rather than rewritten: Issues were
+   banned by adjacency to Actions, and that is the mistake worth being able
+   to read.
 5. **Permission posture ports to `opencode.jsonc`** with the same
    allow/ask/deny semantics; `gh issue|project|workflow|run|release`
    stays denied.
+   **— Superseded in part by ADR-0006:** `gh issue` resolves per verb —
+   read allowed, write asked, `delete`/`transfer` and everything else
+   denied. `gh project|workflow|run|release` are unchanged.
 
 ## Rationale
 
