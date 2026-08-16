@@ -79,7 +79,10 @@ definitions **and** the machinery that executes and enforces them.
 
 ## References
 
-- Discovery: `discovery/opencode/migration.md` (§6.3).
-- Plan: `plan/opencode/loop.md` (§3.1 Executable governance, §8
-  boundaries 6–7).
+- Discovery: `enkinex-pm/plan/enkinex-aiops/refactor/migration.md` §6.3
+  (private).
+- Plan: `enkinex-pm/plan/enkinex-aiops/refactor/loop.md` §3.1 (executable
+  governance) and §8 (boundaries 6–7) (private). Both are a historical
+  record held as legacy, not current planning — see ADR-0002's References
+  for what that means and why they are named rather than linked.
 - ADR-0002 (the first ADR written under this boundary).

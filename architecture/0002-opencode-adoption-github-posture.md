@@ -71,7 +71,7 @@ whose MCP and permission models differ.
 - Every enkinex convention survives as a portable artefact
   (agents/commands/permissions), not a vendor feature.
 - `opencode run` + `opencode serve` + `@opencode-ai/sdk` unlock the
-  headless loop (Phases 5+ of `plan/opencode/loop.md`).
+  headless loop.
 
 ### Negative
 
@@ -93,7 +93,22 @@ whose MCP and permission models differ.
 ## References
 
 - ADR-0001 (gh-CLI-only verdict; reaffirmed here, record removed).
-- Discovery: `discovery/opencode/migration.md` (§3 capability
-  validation, §6.1).
-- Plan: `plan/opencode/loop.md` (Phases 0–7),
-  `plan/opencode/benchmark-enkinex-databricks.md`.
+- Discovery: `enkinex-pm/plan/enkinex-aiops/refactor/migration.md` §3
+  (capability validation) and §6.1 (private).
+- Plan: `enkinex-pm/plan/enkinex-aiops/refactor/loop.md` Phases 0–7, and
+  `enkinex-pm/plan/enkinex-aiops/refactor/benchmark-enkinex-databricks.md`
+  (private).
+
+**Those three are a historical record, not current planning.** They were
+written for the 2026-08 migration, relocated to the private planning
+repository on 2026-08-13, and are held there as legacy — to be replanned or
+deleted rather than kept current. Their phase and task numbering describes
+work that has been superseded, so it should not be read as work in flight or
+cited as a commitment. This ADR carries its own context accordingly: nothing
+above depends on reading them, and the decision stands on the Context and
+Decision recorded here.
+
+They are named without a leading `../` deliberately: the path would promise a
+link that resolves only for someone holding the private clone, and the name
+alone identifies the document without making that promise
+(`enkinex-pm/plan/README.md`, the redaction convention).
