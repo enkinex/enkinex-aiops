@@ -2,7 +2,9 @@
 
 The **control plane** of the enkinex project (Semantic & Governance as
 Code). This repo authors the shared agentic-loop artefacts consumed by
-every sibling; it writes no product code itself.
+every sibling; it writes no product code itself. opencode is the primary
+agent runtime; Claude Code and Codex are supported through pointer-only
+adapters that carry no rules of their own.
 
 ## Sibling projects (flat clones under `~/Develop/enkinex/`)
 
@@ -11,9 +13,9 @@ every sibling; it writes no product code itself.
 | [enkinex-odcs](../enkinex-odcs) | KCL library for the Open Data Contract Standard (ODCS v3.1.0) — published |
 | [enkinex-odps](../enkinex-odps) | KCL library for the Open Data Product Standard (ODPS v1.0.0) — published |
 | [enkinex-okf](../enkinex-okf) | KCL library for Google's Open Knowledge Format (OKF v0.2) — `v0.2-draft`; frontmatter families only |
-| [enkinex-databricks](../enkinex-databricks) | KCL library for Databricks Asset Bundles — v0.1.0 scaffold; benchmark vehicle of the opencode migration |
+| [enkinex-databricks](../enkinex-databricks) | KCL library for Databricks Asset Bundles — v0.1.0 scaffold |
 | [enkinex-ossie](../enkinex-ossie) | KCL library for Apache Ossie (0.2.0.dev0) — earliest in its lifecycle; `SemanticModel` and one field so far |
-| [enkinex-knowledge-base](../enkinex-knowledge-base) | KbDev. Public and empty; the OKF corpus is built in Phase 3 of the successor plan |
+| [enkinex-knowledge-base](../enkinex-knowledge-base) | KbDev. Public and empty |
 | [enkinex-odcs-tutorial](../enkinex-odcs-tutorial) | Worked ODCS example, pinned to the library version it teaches |
 | [enkinex-odps-tutorial](../enkinex-odps-tutorial) | Worked ODPS example, pinned to the library version it teaches |
 | [enkinex-org-website](../enkinex-org-website) | enkinex.org — Docusaurus 3 + TypeScript, deployed via Wrangler. Private; its pre-publication scan found no Cloudflare or analytics secrets |
@@ -34,22 +36,21 @@ every sibling; it writes no product code itself.
 | `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
 | `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
 | `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
-| `tests/` | **Golden-set regression** over the executable governance artefacts — 223 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 271 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
 | `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
 | `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing; `project_state` reaches the private planning sibling only when `ENKINEX_PM_ROOT` is set. See `mcp/README.md`. |
 | `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |
 | `scripts/ledger.sh` | Cost snapshot writer; warns while the OpenRouter key has no spend limit. |
 | `scripts/opencode-headless.sh` | Launcher for unattended runs (`just headless <repo> …`); documents why the headless profile exists and how it is delivered. |
-| `opencode/` | Executable-artefact sources: `agent/` (10 agents — 5 github workflow + 5 loop), `command/` (`/ci-*` chain); later `tools/`, `plugin/`, `skills/` (loop.md Phase 4). Synced to siblings' `.opencode/`. Note `tools` is plural: opencode never reads `.opencode/tool`. |
+| `opencode/` | Executable-artefact sources: `agent/` (10 agents — 5 github workflow + 5 loop), `command/` (`/ci-*` chain), `plugin/` (the opencode guard adapter). Synced to siblings' `.opencode/`. Note `tools` is plural: opencode never reads `.opencode/tool`. |
 | `.opencode/` | **Symlinks only** (`agent`, `command` → `../opencode/…`) so the sources are live in this repo without duplication. |
-| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution. **The only planning surface left in this repo.** |
+| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution, 0006 GitHub Issues as the work unit. **The only planning surface left in this repo.** |
 
 ### Planning lives elsewhere
 
 The shared block below states the rule. What is specific to this repo:
 `plan/`, `discovery/` and `.prompts/` were here and are gone, and this
-repo's folder is `../enkinex-pm/plan/enkinex-aiops/`, with the five
-relocated documents under its `refactor/` awaiting triage.
+repo's folder is `../enkinex-pm/plan/enkinex-aiops/`.
 
 Two consequences worth knowing before you act on them. Paths into
 `../enkinex-pm/` resolve only for someone holding that clone, which is why
@@ -70,10 +71,10 @@ it reports this repo's ADRs and nothing more (`mcp/README.md`).
 
 ## Current state
 
-- v0.2.0 — opencode + OpenRouter agent loop (`../enkinex-pm/plan/enkinex-aiops/refactor/loop.md`),
-  Phases 0–6 done. Phase 7 dogfooding is partial: proven against
-  `enkinex-okf`, blocked in `enkinex-odcs` by a loop hang tracked in
-  `../enkinex-pm/plan/enkinex-aiops/refactor/harness-and-dogfooding.md` §2.1.
+Open tasks are in this repository's issues.
+
+## History
+
 - **Commit `Refs:` footers changed shape on 2026-08-13** (AIOPS-10). Before
   that date they are repo-relative paths into `plan/`, `discovery/` or
   `../enkinex-lab/` — directories that have since moved or gone, so those
@@ -87,29 +88,8 @@ it reports this repo's ADRs and nothing more (`mcp/README.md`).
   settles that repo's conventions.
 - **This repository was recreated from a clean root commit on 2026-08-06**
   and published. The previous forty-commit history carried agent-memory and
-  task-spec files describing a private system; the disposition is recorded in
-  the successor plan §1.3. The decisions survive in `architecture/`, in the
-  relocated plans and this file; the `Refs:` chain does not.
-- **Successor-plan Phase 1 is applied.** Ten public repositories, all with
-  `main` protected: merge restricted, code-owner review, linear history, and
-  a required `test` check on the seven that have code. `v*` tags protected on
-  the versioned libraries and tutorials; secret scanning, push protection and
-  Dependabot alerts on; 2FA required org-wide; four teams at `write`. Applied
-  and drift-checked by `governance/apply-governance.sh` in the private
-  `enkinex-pm`, which discovers public repos rather than listing them.
-- **The shared layer is live in all six repos** — the five library and
-  website adoption PRs merged 2026-08-06. `enkinex-ossie` joined last: it had
-  never been in `REPOS`, so the sync had never targeted it.
-- Open: `enkinex-org-website` is still private (scanned clean, publication is
-  a decision not a blocker); `enkinex-knowledge-base` is empty until Phase 3;
-  retrospective credential scans are owed on `enkinex-databricks` and
-  `enkinex-odps-tutorial`, both published before a scan was run.
-- Known-open harness items are §2 of
-  `../enkinex-pm/plan/enkinex-aiops/refactor/harness-and-dogfooding.md`: the odcs loop hang,
-  free-tier viability, agent-output evals, OpenRouter model-level fallback,
-  and the ledger's spend-limit check.
-- opencode is the primary agent runtime; Claude Code and Codex are supported
-  through pointer-only adapters that carry no rules of their own.
+  task-spec files describing a private system. The decisions survive in
+  `architecture/` and in this file; the `Refs:` chain does not.
 
 <!-- BEGIN GENERATED: enkinex-aiops/AGENTS.shared.md — do not edit here; run "just sync-opencode" in enkinex-aiops -->
 ## Shared enkinex rules

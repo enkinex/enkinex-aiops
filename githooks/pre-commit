@@ -7,9 +7,8 @@
 # even after the instruction was hardened) and the staged-secret scan.
 #
 # That incident is the whole justification for this hook existing, so it is
-# stated here rather than cited: the record is in the private enkinex-pm
-# planning repo (refactor/loop.md, Phase 2 status) and no outside reader of
-# this repository can open it.
+# stated here rather than cited. A comment that points at a document the
+# reader cannot open explains nothing; this one carries its own reason.
 set -euo pipefail
 
 fail() {
