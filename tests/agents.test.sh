@@ -35,8 +35,12 @@ done
 
 section "model pins resolve on OpenRouter"
 # The only non-hermetic check in the suite: it needs the opencode binary and
-# a live catalog. Absent binary is environmental (CI runs without it) and
-# skips; a present binary returning nothing is a real signal and fails.
+# a live catalog. Both absences are environmental and skip — CI runs without
+# the binary, and a checkout with no OpenRouter credential gets `Provider not
+# found: openrouter` and an empty catalog. Neither says anything about a pin,
+# and reporting either as a failed pin is the absence-looks-like-a-result
+# mistake this repo has already made three times. A catalog that WAS fetched
+# and does not carry a pin is a real failure and still fails below.
 if ! command -v opencode >/dev/null 2>&1; then
     ok "skipped: opencode not installed, so pins cannot be checked here"
     CATALOG=""
@@ -45,7 +49,7 @@ else
 fi
 if [ -z "$CATALOG" ]; then
     command -v opencode >/dev/null 2>&1 &&
-        no "fetched the OpenRouter catalog" "opencode models openrouter returned nothing"
+        ok "skipped: no OpenRouter catalog came back, most likely no credential for the provider"
 else
     for f in "$AGENT_DIR"/*.md; do
         name="$(basename "$f" .md)"
@@ -64,7 +68,7 @@ section "KCL agents carry the context7 docs wiring"
 # acceptance test, and referenced by nothing — a tool catalog billed to every
 # session across ten repos with no caller. The wiring is what makes it earn that
 # cost, and a well-meaning trim of an agent's instructions is exactly how it
-# would quietly go back to being unused. See harness-and-dogfooding.md §2.6.
+# would quietly go back to being unused.
 C7_IDS="/kcl-lang/kcl-lang.io
 /bitol-io/open-data-contract-standard
 /bitol-io/open-data-product-standard
