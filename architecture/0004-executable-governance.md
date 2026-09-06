@@ -94,6 +94,6 @@ definitions **and** the machinery that executes and enforces them.
   (private).
 - Plan: `enkinex-pm/plan/enkinex-aiops/refactor/loop.md` §3.1 (executable
   governance) and §8 (boundaries 6–7) (private). Both are a historical
-  record held as legacy, not current planning — see ADR-0002's References
+  record, deleted 2026-09-05 — see ADR-0002's References
   for what that means and why they are named rather than linked.
 - ADR-0002 (the first ADR written under this boundary).

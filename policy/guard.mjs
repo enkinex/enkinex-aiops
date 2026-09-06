@@ -39,12 +39,56 @@ const hasShortFlag = (cmd, letter) =>
 
 const hasFlag = (cmd, flag) => tokens(cmd).includes(flag);
 
-/** Matches the command and any `&&`/`;`/`|` chained segment of it. */
-const segments = (cmd) =>
-  cmd
-    .split(/&&|\||;|\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+/**
+ * Matches the command and any `&&`/`;`/`|` chained segment of it.
+ *
+ * Splitting has to ignore separators inside quotes. Splitting on a bare `|`
+ * without doing so trades one bypass for another: it catches
+ * `echo x | git commit --no-verify`, and it lets
+ * `git commit -m "fix the A|B table" --no-verify` through, because the segment
+ * carrying the flag no longer starts with `git commit`. A pipe in a commit
+ * message is the likelier of the two to occur, so that trade was a loss. It is
+ * also why an ordinary alternation in a read-only `grep` was being evaluated as
+ * if its tail were a separate command.
+ *
+ * Quoted spans are blanked to same-length filler before the split, so offsets
+ * are preserved and the ORIGINAL text of each segment is what the rules see.
+ */
+const segments = (cmd) => {
+  let masked = "";
+  let quote = null;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (quote) {
+      // Inside single quotes a backslash is literal; inside double quotes it escapes.
+      if (quote === '"' && ch === "\\" && i + 1 < cmd.length) {
+        masked += "xx";
+        i++;
+        continue;
+      }
+      masked += ch === quote ? ch : "x";
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      masked += ch;
+      continue;
+    }
+    masked += ch;
+  }
+
+  const out = [];
+  let start = 0;
+  const sep = /&&|\|\||\||;|\n/g;
+  let m;
+  while ((m = sep.exec(masked)) !== null) {
+    out.push(cmd.slice(start, m.index));
+    start = m.index + m[0].length;
+  }
+  out.push(cmd.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+};
 
 const startsWith = (seg, prefix) =>
   seg === prefix || seg.startsWith(prefix + " ");

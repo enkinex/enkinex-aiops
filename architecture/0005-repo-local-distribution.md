@@ -117,5 +117,5 @@ installation there has been reverted to a pristine stub).
   2026-08-03 (load order and override semantics).
 - Plan: `enkinex-pm/plan/enkinex-aiops/refactor/loop.md` §4 (distribution
   model) and its Phase 1 status (private). A historical record held as
-  legacy, not current planning — see ADR-0002's References for what that
+  deleted 2026-09-05 — see ADR-0002's References for what that
   means and why it is named rather than linked.

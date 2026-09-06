@@ -89,21 +89,18 @@ up, through `just publish-issue` in that repo.
   shape rather than merely checking the line is non-blank. History is not
   rewritten and the old footers are not errors; the discontinuity is recorded
   here so it is explained rather than discovered. Note `enkinex-manager` holds
-  a copy of the hook but is outside `REPOS`, so its copy stays permissive
-  until [MGR-12](../enkinex-pm/plan/enkinex-manager/12-adr-0001-repoint.md)
-  settles that repo's conventions.
+  a copy of the hook and is outside `REPOS`, so no sync reaches it; it was
+  brought to this grammar by hand on 2026-09-05 and will drift again.
 - **The 2026-08-06 recreation did not remove the planning documents.** The
   repository was rebuilt on a clean root commit (`709af9c`) and published,
   which dropped the previous forty-commit history and its agent-memory and
-  task-spec files. Five documents were not dropped: `plan/opencode/` and
-  `discovery/opencode/`, 159,471 bytes, were part of that root commit and
-  were deleted only at `88d304b` (#7, 2026-08-12), a week after publication.
+  task-spec files. Five planning documents were not dropped: they were
+  part of that root commit and were deleted only a week after publication.
   They hold the class of material `enkinex-pm` is private to protect —
-  branch-protection posture, private-repository inventory, membership, and a
-  credential review open at the time. `709af9c` is an ancestor of `main`, so
-  `git show 709af9c:plan/opencode/loop.md` still returns the file in any
-  clone; only a history rewrite would change that, and the rules below forbid
-  one. The choice is to leave the history intact, correct the record here,
+  organisational posture rather than credentials — so what they describe
+  should be treated as public. That root commit is an ancestor of `main`, so
+  the files remain fetchable from any clone; only a history rewrite would
+  change that, and the rules below forbid one. The choice is to leave the history intact, correct the record here,
   and treat what those documents describe as publicly known — the remedy for
   anything in them is to change the thing they describe, not the commit. The
   decisions survive in `architecture/` and in this file; the `Refs:` chain
@@ -220,6 +217,6 @@ stops the run until a human re-pins it.
 
 **No agent is pinned to the free tier, and that is the decision, not an
 oversight** (AIOPS-12): the evidence sits at the pin in
-`opencode/agent/explore-enkinex.md`, so re-pinning to free means arguing with
+`explore-enkinex.md`, so re-pinning to free means arguing with
 it rather than rediscovering it.
 <!-- END GENERATED -->

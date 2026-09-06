@@ -108,5 +108,5 @@ stops the run until a human re-pins it.
 
 **No agent is pinned to the free tier, and that is the decision, not an
 oversight** (AIOPS-12): the evidence sits at the pin in
-`opencode/agent/explore-enkinex.md`, so re-pinning to free means arguing with
+`explore-enkinex.md`, so re-pinning to free means arguing with
 it rather than rediscovering it.
