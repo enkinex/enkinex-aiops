@@ -21,7 +21,7 @@ was written, and committed to the same repository ADR-0006 lives in. Seven
 sibling repositories carry the same workflow at the same path:
 `enkinex-databricks`, `enkinex-odcs`, `enkinex-odcs-tutorial`,
 `enkinex-odps`, `enkinex-odps-tutorial`, `enkinex-okf` and `enkinex-ossie`.
-Eight files in all, one per repository, each triggered on push and pull
+Nine files in all, one per repository, each triggered on push and pull
 request to `main` plus `workflow_dispatch`. `enkinex-org-website` and
 `enkinex-knowledge-base` have none — each `.github/` holds only `CODEOWNERS`
 — and the org profile repository is not cloned here, so it was not checked.
@@ -88,7 +88,7 @@ operator's machine, on work already in hand.
   workflow file in the org disproves teaches contributors to discount the
   rules that still hold. ADR-0006 §4 restated this one without checking the
   repository it was being committed to; that is the failure worth naming.
-- **The shape is the bound.** Eight files, one trigger shape, one command
+- **The shape is the bound.** Nine files, one trigger shape, one command
   each. Cost stays legible because anything growing past that shape shows up
   as a diff in `.github/workflows/`.
 
@@ -96,7 +96,7 @@ operator's machine, on work already in hand.
 
 ### Positive
 
-- The eight workflows already on `main` are governed rather than
+- The nine workflows already on `main` are governed rather than
   undocumented, and AIOPS-17's widening has a decision behind it.
 - A contributor's first pull request is checked by something that does not
   depend on the maintainer having a clone open.

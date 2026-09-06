@@ -30,7 +30,7 @@
   // ── Language servers (loop.md Phase 3) ──────────────────────────────────
   // An `lsp` object enables the built-ins AND applies these overrides, so the
   // website keeps its TS/TSX server. KCL lives in the shared baseline rather
-  // than per-repo overlays: five of the six sync targets are KCL libraries
+  // than per-repo overlays: five of the seven sync targets are KCL libraries
   // (every repo in the Justfile's REPOS but enkinex-org-website), and the
   // `extensions` gate means a repo with no .k files never spawns it.
   // `kcl-language-server` with no subcommand speaks LSP over stdio.

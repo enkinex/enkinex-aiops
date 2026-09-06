@@ -79,6 +79,21 @@ bash_case "piped implicit staging"       'ls | git add -A'                      
 bash_case "piped pr merge"               'echo y | gh pr merge 12 --squash'     deny
 bash_case "ordinary pipe stays allowed"  'git log --oneline | head -5'          allow
 
+# Splitting on a bare pipe to catch the cases above traded one bypass for
+# another: a pipe inside a quoted argument split the command, so the segment
+# carrying the flag no longer began with `git commit` and the rule never fired.
+# Measured against the pre-change guard, `git commit -m "fix A|B" --no-verify`
+# went from deny to allow. Quoted spans are masked before the split now, and
+# these four cases pin both halves so neither can be traded for the other again.
+bash_case "quoted pipe does not hide a bypass" \
+    'git commit -m "fix the A|B table" --no-verify'                            deny
+bash_case "quoted pipe does not hide staging" \
+    'git add -A -- "a|b.txt"'                                                  deny
+bash_case "a pipe in a commit message is allowed" \
+    'git commit -m "docs: describe the a|b split" -a'                          allow
+bash_case "a regex alternation in a search is allowed" \
+    'grep -rE "foo|bar" .'                                                     allow
+
 section "guard — must not over-block"
 bash_case "normal commit"                'git commit -m "feat: thing"'          allow
 bash_case "git status"                   'git status -sb'                       allow

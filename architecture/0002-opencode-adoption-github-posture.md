@@ -119,8 +119,8 @@ whose MCP and permission models differ.
 
 **Those three are a historical record, not current planning.** They were
 written for the 2026-08 migration, relocated to the private planning
-repository on 2026-08-13, and are held there as legacy — to be replanned or
-deleted rather than kept current. Their phase and task numbering describes
+repository on 2026-08-13, and deleted there on 2026-09-05 once the live
+content they still held had been moved to the documents that implement it. Their phase and task numbering describes
 work that has been superseded, so it should not be read as work in flight or
 cited as a commitment. This ADR carries its own context accordingly: nothing
 above depends on reading them, and the decision stands on the Context and
