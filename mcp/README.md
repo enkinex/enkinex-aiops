@@ -12,7 +12,7 @@ Codex all speak, so a single implementation serves every harness.
 |---|---|---|
 | `kcl_vet` | `kcl.mod` exists | Runs the repo's own `just test` gate; returns pass/fail plus compiler diagnostics |
 | `kcl_docs` | `kcl.mod` exists | Runs `just docs` and reports whether the **committed** reference was stale |
-| `project_state` | `plan/`, `discovery/` or `architecture/` exists, **or** the planning sibling has a folder for this repo | Summarises plans and ADRs with their status lines |
+| `project_state` | `architecture/` exists, **or** the planning sibling has a folder for this repo — plus `plan/` in `enkinex-pm` alone | Summarises plans and ADRs with their status lines |
 
 ## The catalog is derived from the repo
 
@@ -33,17 +33,25 @@ export ENKINEX_PM_ROOT=~/Develop/enkinex/enkinex-pm
 ```
 
 Unset — the default, and the only thing a clone without that sibling can do —
-this server is exactly what it was: local directories only, and a repo with
-none of them still pays nothing. Set, `project_state` also reads
+this server reads this repo's `architecture/` and nothing else, and a repo
+without one still pays nothing. Set, `project_state` also reads
 `$ENKINEX_PM_ROOT/plan/<repo>/`, keyed on the checkout's directory name, and
 prefixes those paths with the sibling's name so they are not mistaken for
 paths in the repo you are standing in.
 
+A local `plan/` is read in `enkinex-pm` and nowhere else. Every other repo is
+told not to create one, so offering to read one contradicted the rule shipped
+beside it; a sub-project that recreates the folder now finds a tool that
+ignores it, which is the point and costs nothing today. `enkinex-pm` keeps the
+local walk because its own `plan/` *is* the planning surface there — pointing
+`ENKINEX_PM_ROOT` at itself would reach the same files through a second code
+path bought for one repo.
+
 Opt-in rather than hardcoded because this server ships inside **public**
 repositories. A public tool that assumed a private path would fail for every
 reader who does not hold that clone, and would leak the layout of a repo they
-cannot see. The variable is also why this is not an ADR: the default behaviour
-is unchanged, so the decision is reversible by unsetting it.
+cannot see. The variable is also why the reach into the sibling is not an ADR:
+unsetting it leaves the local read intact, so the decision is reversible.
 
 Two ways to get an empty answer, and they have different fixes — the tool says
 which one applies rather than returning a bare "nothing found".

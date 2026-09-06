@@ -72,6 +72,12 @@ catalog_of() { rpc "$1" "$LIST" | jq_field 2 result.tools; }
 AIOPS="$(catalog_of "$ROOT")"
 assert_contains "aiops exposes project_state" "$AIOPS" 'project_state'
 case "$AIOPS" in *kcl_vet*) no "aiops hides the KCL tools" "aiops has no kcl.mod" ;; *) ok "aiops hides the KCL tools" ;; esac
+# The description is what an agent reads, so it is where the contradiction was:
+# it named directories the shared rules tell this repo never to create.
+case "$AIOPS" in
+    *discovery*|*"own plan/"*) no "the description offers no directory the rules forbid" "$AIOPS" ;;
+    *) ok "the description offers no directory the rules forbid" ;;
+esac
 
 KCL_REPO="$ROOT/../enkinex-odcs"
 if [ -f "$KCL_REPO/kcl.mod" ]; then
@@ -117,6 +123,26 @@ NOPLAN="$(mktemp -d)/enkinex-unplanned"; mkdir -p "$NOPLAN"
     no "a repo with no folder in the sibling still gets an empty catalog" \
        "got $(ENKINEX_PM_ROOT="$PM" catalog_of "$NOPLAN")"
 
+# The shared rules tell a sub-project not to create a plan/ and give it no
+# discovery/ stage at all. A tool that offers to read either is an invitation
+# to make one, so neither may light up the catalog.
+FIXTURES="$(dirname "$PM_REPO")"
+STRAY="$FIXTURES/enkinex-stray"; mkdir -p "$STRAY/plan" "$STRAY/discovery"
+printf '# Stray plan\n\n- Status: **planned**\n' > "$STRAY/plan/01-stray.md"
+printf '# Stray note\n'                          > "$STRAY/discovery/01-note.md"
+[ "$(catalog_of "$STRAY")" = "[]" ] &&
+    ok "a sub-project's own plan/ and discovery/ do not light up project_state" ||
+    no "a sub-project's own plan/ and discovery/ do not light up project_state" \
+       "got $(catalog_of "$STRAY")"
+
+# The one exception, keyed on the checkout's name: enkinex-pm is the repo whose
+# local plan/ IS the planning surface, so there the local walk is correct.
+PLANNER="$FIXTURES/enkinex-pm"; mkdir -p "$PLANNER/plan/done"
+printf '# Local plan\n\n- Status: **planned**\n' > "$PLANNER/plan/01-local.md"
+printf '# Shipped locally\n\n- Status: **done**\n' > "$PLANNER/plan/done/02-shipped.md"
+assert_contains "the planning repo's own plan/ still lights it up" \
+    "$(catalog_of "$PLANNER")" 'project_state'
+
 section "tool calls"
 CALL='{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_state","arguments":{}}}'
 OUT="$(rpc "$ROOT" "$CALL")"
@@ -134,10 +160,21 @@ assert_contains "completed plans are reported separately"          "$PM_OUT" '02
 # A bare `plan/…` would read as a path in the repo the agent is standing in.
 assert_contains "sibling paths are prefixed with the sibling"      "$PM_OUT" "$(basename "$PM")/plan/enkinex-fixture"
 
+PLANNER_OUT="$(rpc "$PLANNER" "$CALL")"
+assert_contains "the planning repo's local plans are summarised"   "$PLANNER_OUT" '01-local.md'
+assert_contains "its completed plans are reported separately"      "$PLANNER_OUT" '02-shipped.md'
+
 # The empty answer must name the cause: no ENKINEX_PM_ROOT is a different
 # problem from a sibling with nothing in it, and they have different fixes.
 EMPTY_OUT="$(rpc "$EMPTY" "$CALL")"
 assert_contains "an empty repo is told the tool is unavailable" "$EMPTY_OUT" 'Unknown tool'
+
+# A repo that qualifies on architecture/ but holds nothing gets the other two.
+BARE="$FIXTURES/enkinex-bare"; mkdir -p "$BARE/architecture"
+assert_contains "the empty answer names the unset variable" \
+    "$(rpc "$BARE" "$CALL")" 'ENKINEX_PM_ROOT'
+assert_contains "with it set, the empty answer names the folder it checked" \
+    "$(ENKINEX_PM_ROOT="$PM" rpc "$BARE" "$CALL")" "$(basename "$PM")/plan/enkinex-bare"
 
 section "a tool call outliving stdin still answers"
 # Regression: the server used to exit on stdin EOF, killing an in-flight child
