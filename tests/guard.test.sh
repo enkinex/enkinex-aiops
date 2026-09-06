@@ -55,6 +55,41 @@ bash_case "core.hooksPath tamper"        'git config core.hooksPath /dev/null'  
 bash_case "rm -rf .githooks"             'rm -rf .githooks'                     deny
 bash_case "chmod -x .githooks"           'chmod -x .githooks/pre-commit'        deny
 
+# Git takes its global options between `git` and the verb, so every rule that
+# matched a `git commit` prefix was one `-C .` away from allowed. Measured on
+# dc6ea42, five of the six lines below returned allow. The two config spellings
+# set core.hooksPath for a single command and leave nothing behind afterwards,
+# so nothing later would notice the hooks had been redirected.
+section "guard — global options do not move the verb out of reach"
+bash_case "-C before commit"             'git -C . commit --no-verify -m x'     deny
+bash_case "-C before add"                'git -C . add -A'                      deny
+bash_case "--no-pager before add"        'git --no-pager add -A'                deny
+bash_case "-P before push"               'git -P push --force'                  deny
+bash_case "-C before reset"              'git -C . reset --hard'                deny
+bash_case "--git-dir= before commit"     'git --git-dir=/tmp/x commit -n -m y'  deny
+bash_case "--work-tree value form"       'git --work-tree /tmp commit -n -m y'  deny
+bash_case "-c core.hooksPath"            'git -c core.hooksPath=/tmp/e commit -m x' deny
+bash_case "GIT_CONFIG_KEY_n hooksPath" \
+    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/tmp/e git commit -m x' \
+                                                                                deny
+# The near-misses. Stripping the globals must not make ordinary work look
+# denied, and an unrelated `-c` is not a hooks redirect.
+bash_case "-C with a read-only verb"     'git -C /tmp status -sb'               allow
+bash_case "--no-pager with log"          'git --no-pager log'                   allow
+bash_case "-C with explicit paths"       'git -C . add AGENTS.md'               allow
+bash_case "-c that is not hooksPath"     'git -c user.name=x commit -m "feat: thing"' allow
+bash_case "hooksPath named in prose"     'git commit -m "docs: explain core.hooksPath"' allow
+# A flag that does not take a separate value must not swallow the verb: listing
+# --exec-path as value-taking would turn this line back into an allow.
+bash_case "--exec-path does not eat the verb" 'git --exec-path commit --no-verify -m x' deny
+# A quoted value with a space in it would split on whitespace and leave the
+# walk pointing at the tail of the value instead of the verb — the same bypass
+# one layer down from the one masking already closed for the segment split.
+bash_case "quoted -c value with a space" \
+    'git -c "user.name=A B" commit --no-verify -m x'                           deny
+bash_case "quoted -C path with a space" \
+    "git -C 'my repo' add -A"                                                  deny
+
 section "guard — implicit staging"
 bash_case "git add -A"                   'git add -A'                           deny
 bash_case "git add ."                    'git add .'                            deny
@@ -119,6 +154,18 @@ git init -q "$FOREIGN"
 git -C "$FOREIGN" remote add origin git@github.com:someoneelse/x.git
 bash_case "gh pr create, foreign origin" 'gh pr create --fill' deny  "$FOREIGN"
 bash_case "gh pr create, enkinex origin" 'gh pr create --fill' allow "$ROOT"
+# -C names the repo the push actually writes to, so that is the origin to ask.
+# Checking the session's cwd instead would give a wrong answer in both
+# directions rather than no answer.
+bash_case "push -C into a foreign repo"  "git -C $FOREIGN push" deny  "$ROOT"
+bash_case "push -C into an enkinex repo" "git -C $ROOT push"    allow "$FOREIGN"
+bash_case "push -C at a path that is gone" 'git -C /nonexistent/zz push' allow "$ROOT"
+# A quoted path has to lose its quotes before it can be resolved, or the lookup
+# silently misses and the rule allows.
+SPACED="$FOREIGN/a dir"
+git init -q "$SPACED"
+git -C "$SPACED" remote add origin git@github.com:someoneelse/y.git
+bash_case "push -C into a quoted foreign path" "git -C '$SPACED' push" deny "$ROOT"
 
 section "guard — robustness (a broken payload must never block work)"
 [ "$(printf '' | node "$GUARD" | wc -c)" -eq 0 ] &&

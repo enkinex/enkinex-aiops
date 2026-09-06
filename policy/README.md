@@ -25,7 +25,12 @@ The guard covers only what `.githooks/` structurally cannot see:
 - **Hook bypasses** — `--no-verify`, `core.hooksPath` edits, deleting
   `.githooks/`. A git hook cannot defend itself; without this rule every
   git-level guarantee is one flag deep.
-- **Commands that never reach git** — `gh pr merge`, `gh pr create`.
+- **Commands that never reach git** — `gh pr merge`, denied outright.
+  `gh pr create` is not: `remote-guard` refuses it only when origin is not
+  under `github.com/enkinex`, and the permission posture for the ordinary
+  case lives in config — `ask` in `opencode.jsonc`, `deny` in
+  `opencode.headless.json`. Listing the two together read as a rule that
+  does not exist.
 - **Command shape rather than result** — `git add -A` is invisible to
   `pre-commit`, which only sees the index that resulted.
 - **Credential-path reads** — opencode denies these in config; Claude Code

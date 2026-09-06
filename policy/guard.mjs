@@ -12,7 +12,9 @@
 //   * hook bypasses (--no-verify, core.hooksPath edits, deleting .githooks).
 //     A hook cannot defend itself, which is what makes this the highest-value
 //     rule here: without it, every git-level guarantee is one flag deep.
-//   * commands that never reach git at all (gh pr merge, gh pr create).
+//   * commands that never reach git at all: gh pr merge outright, and any
+//     gh or push whose origin is not under github.com/enkinex. gh pr create
+//     against an enkinex remote is allowed here and gated in config.
 //   * the shape of a command rather than its result — `git add -A` is invisible
 //     to pre-commit, which only ever sees the index that resulted.
 //   * reads of credential paths, which opencode denies in config but Claude
@@ -23,6 +25,7 @@
 
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 
 const ENKINEX_REMOTE = /github\.com[:/]enkinex\//;
 
@@ -54,7 +57,7 @@ const hasFlag = (cmd, flag) => tokens(cmd).includes(flag);
  * Quoted spans are blanked to same-length filler before the split, so offsets
  * are preserved and the ORIGINAL text of each segment is what the rules see.
  */
-const segments = (cmd) => {
+const maskQuoted = (cmd) => {
   let masked = "";
   let quote = null;
   for (let i = 0; i < cmd.length; i++) {
@@ -77,6 +80,11 @@ const segments = (cmd) => {
     }
     masked += ch;
   }
+  return masked;
+};
+
+const segments = (cmd) => {
+  const masked = maskQuoted(cmd);
 
   const out = [];
   let start = 0;
@@ -93,6 +101,89 @@ const segments = (cmd) => {
 const startsWith = (seg, prefix) =>
   seg === prefix || seg.startsWith(prefix + " ");
 
+/**
+ * Git's global options sit BETWEEN `git` and the verb, so `git -C . commit`
+ * defeats every rule below that matches on a `git commit` prefix. Leading
+ * `NAME=value` assignments move the verb the same way. Both are stripped here
+ * and the rules see `git <verb> …`.
+ *
+ * What is stripped is returned rather than discarded, because two of those
+ * tokens are themselves tampering: `-c core.hooksPath=` and the
+ * `GIT_CONFIG_KEY_*` environment form both redirect the hooks without ever
+ * spelling `git config`.
+ *
+ * Any leading `-` token is treated as a global option, rather than only the
+ * ones on a list. An unknown flag that stopped the walk would leave the whole
+ * segment unmatched, which is the failure being fixed.
+ *
+ * The list below is only for the options that take a SEPARATE value, and it
+ * has to be exact in that direction: naming one that does not take a separate
+ * value would consume the verb instead and hand back a bypass. Each entry was
+ * checked against git 2.55.0 by giving it a value and watching option parsing
+ * accept it. `--exec-path` is deliberately absent — bare, it prints a path and
+ * runs nothing.
+ */
+const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+const GLOBAL_TAKES_VALUE = new Set([
+  "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--attr-source",
+  "--config-env",
+]);
+
+/**
+ * Splitting on whitespace would cut `-c "user.name=A B"` in two and leave the
+ * walk below pointing at `B"` instead of the verb — the same bypass one layer
+ * down, so it is masked the same way. Boundaries come from the masked text and
+ * the ORIGINAL substring is what is returned.
+ */
+const quotedTokens = (seg) => {
+  const masked = maskQuoted(seg);
+  const out = [];
+  const word = /\S+/g;
+  let m;
+  while ((m = word.exec(masked)) !== null) {
+    out.push(seg.slice(m.index, m.index + m[0].length));
+  }
+  return out;
+};
+
+/** `-C 'my repo'` arrives with its quotes still on; a path keeps neither. */
+const unquote = (t) =>
+  (t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))
+    ? t.slice(1, -1)
+    : t;
+
+const normalise = (seg) => {
+  const t = quotedTokens(seg);
+  let i = 0;
+  const stripped = [];
+  while (i < t.length && ASSIGNMENT.test(t[i])) stripped.push(t[i++]);
+  const assignments = i;
+
+  if (t[i] !== "git") {
+    return {
+      cmd: assignments ? t.slice(i).join(" ") : seg,
+      stripped,
+      chdir: [],
+    };
+  }
+
+  const chdir = [];
+  let j = i + 1;
+  while (j < t.length && t[j].startsWith("-")) {
+    const flag = t[j].split("=")[0];
+    stripped.push(t[j]);
+    if (GLOBAL_TAKES_VALUE.has(flag) && !t[j].includes("=") && j + 1 < t.length) {
+      stripped.push(t[j + 1]);
+      if (flag === "-C") chdir.push(unquote(t[j + 1]));
+      j++;
+    }
+    j++;
+  }
+
+  if (!stripped.length) return { cmd: seg, stripped, chdir };
+  return { cmd: ["git", ...t.slice(j)].join(" "), stripped, chdir };
+};
+
 // ── rules ──────────────────────────────────────────────────────────────────
 // Each returns a reason string to deny, or null to allow.
 const BASH_RULES = [
@@ -106,8 +197,13 @@ const BASH_RULES = [
   },
   {
     id: "hook-path-tamper",
-    check: (s) =>
-      /git\s+config\s+(--\S+\s+)*core\.hooksPath/.test(s)
+    // Three spellings, one effect. `git config core.hooksPath` is the visible
+    // one; `-c core.hooksPath=` and `GIT_CONFIG_KEY_n=core.hooksPath` set it for
+    // a single command and leave nothing behind to notice afterwards. The last
+    // two are in ctx.stripped, which is what normalise() took off the front.
+    check: (s, ctx) =>
+      /git\s+config\s+(--\S+\s+)*core\.hooksPath/.test(s) ||
+      ctx.stripped.some((t) => /core\.hooksPath/i.test(t))
         ? "core.hooksPath is what makes the enkinex hooks active. Changing it from an agent disables every git-level guarantee."
         : null,
   },
@@ -159,7 +255,7 @@ const BASH_RULES = [
     check: (s, ctx) => {
       if (!/^(gh\s|git\s+push\b)/.test(s)) return null;
       if (!/^gh\s+(pr|repo|release|api)\b/.test(s) && !startsWith(s, "git push")) return null;
-      const origin = originOf(ctx.cwd);
+      const origin = originOf(targetOf(ctx));
       if (origin === null) return null; // no remote: a local scratch tree
       return ENKINEX_REMOTE.test(origin)
         ? null
@@ -167,6 +263,16 @@ const BASH_RULES = [
     },
   },
 ];
+
+/**
+ * `git -C <path>` is where the command actually writes, so it is the origin
+ * worth checking. Git interprets each -C relative to the previous one, which
+ * `resolve` reproduces. A path that does not exist makes originOf return null
+ * and the rule allow — the same answer a scratch tree already gets.
+ */
+function targetOf(ctx) {
+  return ctx.chdir.reduce((dir, next) => resolve(dir, next), ctx.cwd || process.cwd());
+}
 
 function originOf(cwd) {
   try {
@@ -189,8 +295,9 @@ function evaluate(payload) {
     const command = input.command ?? input.cmd ?? "";
     if (!command) return null;
     for (const seg of segments(command)) {
+      const { cmd, stripped, chdir } = normalise(seg);
       for (const rule of BASH_RULES) {
-        const reason = rule.check(seg, { cwd });
+        const reason = rule.check(cmd, { cwd, stripped, chdir });
         if (reason) return `[${rule.id}] ${reason}`;
       }
     }
