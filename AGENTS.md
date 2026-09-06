@@ -73,7 +73,11 @@ it reports this repo's ADRs and nothing more (`mcp/README.md`).
 
 ## Current state
 
-Open tasks are in this repository's issues.
+ADR-0006 makes a GitHub issue the unit of work at the implement stage, and
+none has been created yet — the issue list is empty rather than current. Open
+work is ordered in `../enkinex-pm/plan/backlog.md`, and this repo's tasks are
+`../enkinex-pm/plan/enkinex-aiops/`. A task becomes an issue when it is picked
+up, through `just publish-issue` in that repo.
 
 ## History
 
