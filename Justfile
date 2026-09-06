@@ -7,6 +7,25 @@
 # for publication (PM-07).
 REPOS := "enkinex-odcs enkinex-odps enkinex-org-website enkinex-databricks enkinex-okf enkinex-ossie enkinex-pm"
 
+# Repos taking the POLICY LAYER ONLY — the guard and its two pointer-only
+# adapters, and nothing else. No opencode.jsonc, no generated CLAUDE.md, no
+# injected AGENTS.shared.md block, no .opencode/ artefacts, no hooks.
+#
+# enkinex-manager refuses the shared block by name in its own AGENTS.md: the
+# block is written for repos holding enkinex's own code, and the rules that
+# repo needs are restated there in its own words. It was left with .githooks/
+# and nothing behind them — the only checkout in the workspace in that state,
+# so `--no-verify`, core.hooksPath edits and `git add -A` were unenforced there
+# for every harness while the other eight took two guard fixes on 2026-09-06.
+#
+# MGR-17 priced adding it to REPOS and declined: that would clobber the repo's
+# own .mcp.json, replace .githooks/ wholesale, and overturn a written refusal,
+# to obtain one script. This list is the narrower answer.
+#
+# One entry is an exception; a second would make it a category and earn a
+# first-class mechanism rather than a second list.
+POLICY_ONLY := "enkinex-manager"
+
 # Directories under opencode/ distributed to each repo's .opencode/.
 # NOTE: opencode discovers custom tools at .opencode/tools (plural only) —
 # .opencode/tool is never read. agent/command/plugin/skill accept both
@@ -118,6 +137,13 @@ sync-opencode:
         echo "synced -> $repo"
     done
 
+    for repo in {{POLICY_ONLY}}; do
+        dest="$ROOT/$repo"
+        [ -d "$dest/.git" ] || { echo "SKIP $repo (not a repo)"; continue; }
+        install_policy "$SRC" "$dest"
+        echo "synced -> $repo (policy only)"
+    done
+
 # Report drift between the sources here and each repo's installed copy.
 #
 # A REPOS entry with no clone used to `continue` in silence, so a workspace
@@ -166,6 +192,18 @@ verify-opencode:
             fi
         done
     done
+    for repo in {{POLICY_ONLY}}; do
+        total=$((total + 1))
+        dest="$ROOT/$repo"
+        [ -d "$dest/.git" ] || { echo "MISSING: $repo is not cloned at $ROOT — nothing was compared"; rc=1; continue; }
+        examined=$((examined + 1))
+        # Absence and drift are the same signal here: check_policy compares four
+        # files, and a file that is not there fails the comparison like one that
+        # differs. That is the whole point of the list — a copy nothing compares
+        # is what produced the drifted hooks in this repo.
+        check_policy "$SRC" "$dest" "$repo" || rc=1
+    done
+
     # Named counts, so the line cannot claim more than was looked at.
     [ "$rc" -eq 0 ] && echo "shared layer in sync across enkinex-aiops and all $examined sibling repos"
     [ "$examined" -lt "$total" ] && echo "$((total - examined)) of $total sibling repo(s) were never examined"

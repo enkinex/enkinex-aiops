@@ -53,7 +53,7 @@ ST=$?
 [ "$ST" -ne 0 ] && ok "an uncloned REPOS entry fails the check" ||
     no "an uncloned REPOS entry fails the check" "exited 0"
 assert_contains "each missing repo is named" "$OUT" "MISSING: enkinex-odcs"
-assert_contains "the shortfall is counted" "$OUT" "7 of 7 sibling repo(s) were never examined"
+assert_contains "the shortfall is counted" "$OUT" "8 of 8 sibling repo(s) were never examined"
 case "$OUT" in
     *"in sync across"*) no "no success line is printed" "claimed sync after examining nothing" ;;
     *) ok "no success line is printed" ;;
@@ -68,7 +68,41 @@ OUT="$(cd "$ROOT" && just verify-opencode 2>&1)"
 case "$OUT" in
     *MISSING:*) skip "a full workspace earns the line: no sibling clone is present here" ;;
     *) assert_contains "a full workspace earns the line, with its count" "$OUT" \
-           "in sync across enkinex-aiops and all 7 sibling repos" ;;
+           "in sync across enkinex-aiops and all 8 sibling repos" ;;
 esac
+
+section "a POLICY_ONLY repo is compared like any other, from a second list"
+# enkinex-manager takes the guard and its adapters without joining REPOS
+# (MGR-17, MGR-18). The point of the list is that the copy is compared: a copy
+# nothing compares is what left that repo's hand-installed git hooks drifted
+# from their sources by one line and four, with nothing reporting it.
+FAKE="$(mktemp -d)"
+git init -q "$FAKE/enkinex-manager"
+
+# A clone carrying none of the policy layer. Absence and drift are one signal.
+OUT="$(cd "$ROOT" && ENKINEX_ROOT="$FAKE" just verify-opencode 2>&1)"; ST=$?
+[ "$ST" -ne 0 ] && ok "an absent policy layer fails the check" ||
+    no "an absent policy layer fails the check" "exited 0"
+assert_contains "the missing guard is named" "$OUT" "DRIFT: enkinex-manager/.agents/policy/guard.mjs"
+assert_contains "so is the Claude adapter"   "$OUT" "DRIFT: enkinex-manager/.claude/settings.json"
+
+# Installed, but one byte out of date — drift as opposed to absence.
+mkdir -p "$FAKE/enkinex-manager/.agents/policy" "$FAKE/enkinex-manager/.claude" "$FAKE/enkinex-manager/.codex"
+cp "$ROOT/policy/guard.mjs" "$FAKE/enkinex-manager/.agents/policy/guard.mjs"
+cp "$ROOT/policy/README.md" "$FAKE/enkinex-manager/.agents/policy/README.md"
+cp "$ROOT/policy/adapters/claude-settings.json" "$FAKE/enkinex-manager/.claude/settings.json"
+cp "$ROOT/policy/adapters/codex-hooks.json"     "$FAKE/enkinex-manager/.codex/hooks.json"
+printf '\n// stale\n' >>"$FAKE/enkinex-manager/.agents/policy/guard.mjs"
+
+OUT="$(cd "$ROOT" && ENKINEX_ROOT="$FAKE" just verify-opencode 2>&1)"; ST=$?
+[ "$ST" -ne 0 ] && ok "a drifted guard fails the check" ||
+    no "a drifted guard fails the check" "exited 0"
+assert_contains "the drifted file is named" "$OUT" "DRIFT: enkinex-manager/.agents/policy/guard.mjs"
+case "$OUT" in
+    *"DRIFT: enkinex-manager/.claude/settings.json"*)
+        no "only the drifted file is named" "an up-to-date adapter was reported too" ;;
+    *)  ok "only the drifted file is named" ;;
+esac
+rm -rf "$FAKE"
 
 summary
