@@ -11,7 +11,21 @@ ROOT="$(dirname "$HERE")"
 # shellcheck source=lib.sh
 source "$HERE/lib.sh"
 
-command -v opencode >/dev/null || { echo "opencode not on PATH — skipping"; exit 0; }
+# What this suite is worth when it runs, so a skip can say what it cost rather
+# than exiting 0 in silence. The figure is measured and includes the check just
+# before `summary` that enforces it — every assertion below this line is one a
+# skip forgoes, that one included.
+ASSERTIONS=49
+
+# CI installs `just` and nothing else, so this branch is the one every pull
+# request takes. Exit stays 0 — `just test` is what CI calls, and failing it
+# here would force the "install opencode in CI" spend decision that AIOPS-24
+# explicitly does not take. `just check` runs where opencode is present, and
+# that is where a whole-suite skip is treated as a broken environment.
+if ! command -v opencode >/dev/null; then
+    skip "the whole suite: opencode is not on PATH, so nothing here resolved" "$ASSERTIONS"
+    summary
+fi
 
 # resolved <agent-block> — prints "pattern<TAB>action" lines for bash rules.
 resolve() {
@@ -187,5 +201,13 @@ for a in build-kcl docs-writer explore-enkinex review-standard plan-author; do
     [ "$m" = "all" ] && ok "$a is bindable headlessly (mode=all)" ||
         no "$a is bindable headlessly" "mode=$m; opencode run would silently use the default agent"
 done
+
+# ASSERTIONS is a claim about this file, so it is checked against this file:
+# without it the skip line would keep quoting a figure the suite had grown past,
+# which is how the totals in AGENTS.md came to be short by thirteen. _PASS does
+# not yet include this assertion, so it counts itself in.
+[ $((_PASS + 1)) -eq "$ASSERTIONS" ] && ok "the suite is worth the $ASSERTIONS assertions its skip line claims" ||
+    no "the suite is worth the $ASSERTIONS assertions its skip line claims" \
+       "ran $((_PASS + 1)); update ASSERTIONS at the top of this file"
 
 summary

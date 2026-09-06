@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Regression suite for the gates themselves.
+#
+# The other suites assert what the governance artefacts do. This one asserts
+# that the machinery reporting on them cannot report success by not running —
+# the defect AIOPS-24 fixed in two places at once, after `tests/config.test.sh`
+# had skipped 48 assertions on every pull request since it was written and
+# `just verify-opencode` had claimed seven repos were in sync while examining
+# none of them.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(dirname "$HERE")"
+# shellcheck source=lib.sh
+source "$HERE/lib.sh"
+
+section "a skip is counted apart from a pass"
+# In a subshell, so this suite's own counters are untouched.
+COUNTS="$(
+    unset ENKINEX_TEST_REPORT
+    # shellcheck source=lib.sh
+    source "$HERE/lib.sh"
+    ok "one" >/dev/null
+    skip "two" 5 >/dev/null
+    printf '%s %s %s' "$_PASS" "$_FAIL" "$_SKIP"
+)"
+[ "$COUNTS" = "1 0 5" ] && ok "skip does not inflate the pass count" ||
+    no "skip does not inflate the pass count" "got '$COUNTS', wanted '1 0 5'"
+
+REPORT="$(mktemp)"
+trap 'rm -f "$REPORT"' EXIT
+(
+    unset _PASS _FAIL _SKIP
+    # shellcheck source=lib.sh
+    source "$HERE/lib.sh"
+    skip "nothing ran" 3 >/dev/null
+    ENKINEX_TEST_REPORT="$REPORT" summary >/dev/null 2>&1
+) || true
+assert_contains "summary reports the counts a caller can read" "$(cat "$REPORT")" "0 0 3"
+
+section "a suite that cannot run says what it cost"
+# The branch every pull request takes: CI installs `just` and nothing else.
+NO_OC="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v '\.opencode/bin' | paste -sd:)"
+OUT="$(PATH="$NO_OC" bash "$ROOT/tests/config.test.sh" 2>&1)"
+ST=$?
+assert_contains "the skip names its cause" "$OUT" "opencode is not on PATH"
+assert_contains "the skip states what it cost" "$OUT" "49 skipped"
+[ "$ST" -eq 0 ] && ok "exit stays 0, so CI is not forced into an install decision" ||
+    no "exit stays 0" "got $ST"
+
+section "verify-opencode cannot claim repos it never looked at"
+OUT="$(cd "$ROOT" && ENKINEX_ROOT=/nonexistent just verify-opencode 2>&1)"
+ST=$?
+[ "$ST" -ne 0 ] && ok "an uncloned REPOS entry fails the check" ||
+    no "an uncloned REPOS entry fails the check" "exited 0"
+assert_contains "each missing repo is named" "$OUT" "MISSING: enkinex-odcs"
+assert_contains "the shortfall is counted" "$OUT" "7 of 7 sibling repo(s) were never examined"
+case "$OUT" in
+    *"in sync across"*) no "no success line is printed" "claimed sync after examining nothing" ;;
+    *) ok "no success line is printed" ;;
+esac
+
+# And the other direction: the line is only earned when every entry was read.
+# CI checks out this repository alone, so there is nothing to examine there and
+# the assertion skips rather than failing for a reason that says nothing about
+# the commit — which is the same distinction the workflow itself draws by
+# calling `just test` instead of `just check`.
+OUT="$(cd "$ROOT" && just verify-opencode 2>&1)"
+case "$OUT" in
+    *MISSING:*) skip "a full workspace earns the line: no sibling clone is present here" ;;
+    *) assert_contains "a full workspace earns the line, with its count" "$OUT" \
+           "in sync across enkinex-aiops and all 7 sibling repos" ;;
+esac
+
+summary

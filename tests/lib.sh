@@ -12,10 +12,12 @@ set -uo pipefail
 
 _PASS=0
 _FAIL=0
+_SKIP=0
 _FAILED_NAMES=()
+_SKIPPED_NAMES=()
 
-if [ -t 1 ]; then _G=$'\033[32m'; _R=$'\033[31m'; _D=$'\033[2m'; _Z=$'\033[0m'
-else _G=""; _R=""; _D=""; _Z=""; fi
+if [ -t 1 ]; then _G=$'\033[32m'; _R=$'\033[31m'; _Y=$'\033[33m'; _D=$'\033[2m'; _Z=$'\033[0m'
+else _G=""; _R=""; _Y=""; _D=""; _Z=""; fi
 
 section() { printf '\n%s── %s ──%s\n' "$_D" "$1" "$_Z"; }
 
@@ -30,6 +32,17 @@ no() {
     printf '  %sFAIL%s %s\n' "$_R" "$_Z" "$1"
     [ -n "${2:-}" ] && printf '       %s\n' "$2"
     return 0
+}
+
+# skip <label> [count] — an assertion that could not run. Counted apart from
+# pass and fail, because a skip credited as a pass is a gate reporting success
+# by not running (AIOPS-24). `count` is how many assertions the skip cost, for
+# a whole suite bowing out at once; it defaults to 1.
+skip() {
+    local n="${2:-1}"
+    _SKIP=$((_SKIP + n))
+    _SKIPPED_NAMES+=("$1")
+    printf '  %sskip%s %s\n' "$_Y" "$_Z" "$1"
 }
 
 # assert_ok <label> <command...> — command must exit 0
@@ -54,8 +67,19 @@ assert_contains() {
     esac
 }
 
+# The skip line is printed whenever anything was skipped, so a reader never has
+# to infer it from a total that looks lower than usual. ENKINEX_TEST_REPORT is
+# how `just test` reads the same three numbers back: writing them to a file
+# rather than parsing stdout keeps the suites streaming straight to the
+# terminal, colours and all.
 summary() {
+    [ -n "${ENKINEX_TEST_REPORT:-}" ] &&
+        printf '%d %d %d\n' "$_PASS" "$_FAIL" "$_SKIP" >"$ENKINEX_TEST_REPORT"
     printf '\n'
+    if [ "$_SKIP" -gt 0 ]; then
+        printf '%s%d skipped%s\n' "$_Y" "$_SKIP" "$_Z"
+        for n in "${_SKIPPED_NAMES[@]}"; do printf '  - %s\n' "$n"; done
+    fi
     if [ "$_FAIL" -eq 0 ]; then
         printf '%s%d passed%s\n' "$_G" "$_PASS" "$_Z"
         exit 0
