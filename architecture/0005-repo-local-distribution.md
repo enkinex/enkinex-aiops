@@ -49,6 +49,22 @@ installation there has been reverted to a pristine stub).
    - `opencode/shared/AGENTS.md` → `<repo>/.opencode/shared/AGENTS.md`
      (wired in via the baseline config's `instructions` list).
    - `opencode/<dir>/` → `<repo>/.opencode/<dir>/`.
+
+   **— Amended 2026-09-05.** The paths in 1 and 2 are not what ships.
+   Both top-level sources sit at the repo root, not under `opencode/`:
+   `opencode.jsonc` and `AGENTS.shared.md`. `opencode/` holds only the
+   artefact directories — `agent/`, `command/`, `plugin/` today.
+   The shared instructions are no longer distributed as a file at all:
+   `just sync-opencode` injects `AGENTS.shared.md` into each repo's own
+   `AGENTS.md`, between the `BEGIN GENERATED` / `END GENERATED`
+   markers, deletes any `AGENTS.shared.md` left in a target, and writes
+   `CLAUDE.md` as a one-line `@AGENTS.md` import. Nothing is written to
+   `.opencode/shared/`, and the baseline config's `instructions` list
+   no longer carries it — one block that opencode and Codex read
+   directly and Claude Code imports, rather than a file each harness
+   had to be told about. `just verify-opencode` diffs the block and
+   fails on a stray `AGENTS.shared.md` in a target. The decision above
+   is unchanged; only the carrier is. See `scripts/shared-layer.sh`.
 3. **Synced files are committed in the target repo** through its
    normal branch/PR workflow. Distribution to contributors happens
    through `git clone`, not through home-dir mutation.

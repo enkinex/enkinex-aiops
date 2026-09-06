@@ -72,6 +72,12 @@ bash_case "git clean -fdx"               'git clean -fdx'                       
 section "guard — chained commands are inspected per segment"
 bash_case "chained deny after allow"     'just check && git add -A'             deny
 bash_case "chained allow stays allowed"  'just fmt && git add AGENTS.md'        allow
+# A single `|` is a separator too. The split covered `&&`, `||` and `;` but not
+# a lone pipe, so every rule that scans segments could be evaded by piping.
+bash_case "piped hook bypass"            'echo x | git commit --no-verify -m y' deny
+bash_case "piped implicit staging"       'ls | git add -A'                      deny
+bash_case "piped pr merge"               'echo y | gh pr merge 12 --squash'     deny
+bash_case "ordinary pipe stays allowed"  'git log --oneline | head -5'          allow
 
 section "guard — must not over-block"
 bash_case "normal commit"                'git commit -m "feat: thing"'          allow

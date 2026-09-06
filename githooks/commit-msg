@@ -57,7 +57,9 @@ case "$subject" in
 esac
 
 if printf '%s\n' "$msg" | grep -Eqi '^(Closes|Fixes|Resolves):'; then
-    fail "Closes:/Fixes:/Resolves: footers are not used — enkinex repos have no GitHub Issues."
+    fail "Closes:/Fixes:/Resolves: footers are not used.
+  An issue is closed by hand after the squash merge, not as a side effect of a
+  commit message (ADR-0006)."
 fi
 
 # Plan reference footer. `Refs:` carries a task ID — a project prefix plus the

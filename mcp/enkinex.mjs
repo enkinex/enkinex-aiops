@@ -42,6 +42,11 @@ const PM_ROOT = process.env.ENKINEX_PM_ROOT || null;
 const REPO = basename(ROOT);
 
 const has = (p) => existsSync(join(ROOT, p));
+// enkinex-pm is the one repo whose local plan/ IS the planning surface, so the
+// local walk is correct there and nowhere else: every other repo is told not to
+// create one (AGENTS.shared.md), and a tool that offers to read a directory is
+// an invitation to make it.
+const localPlan = REPO === "enkinex-pm" && has("plan");
 // Plans for THIS repo, in the private sibling. Absent when PM_ROOT is unset,
 // and absent when the sibling has no folder for this repo yet — both mean the
 // same thing to every caller: nothing to read.
@@ -68,11 +73,11 @@ function catalog() {
     });
   }
 
-  if (has("plan") || has("discovery") || has("architecture") || pmPlanDir) {
+  if (has("architecture") || localPlan || pmPlanDir) {
     tools.push({
       name: "project_state",
       description:
-        "Summarise this repo's plans and ADRs with their status lines, so you can orient without reading every file. Reads the repo's own plan/, discovery/ and architecture/, plus its plan folder in the private planning sibling when ENKINEX_PM_ROOT is set.",
+        `Summarise this repo's plans and ADRs with their status lines, so you can orient without reading every file. Reads the repo's own architecture/${localPlan ? " and plan/" : ""}, plus its plan folder in the private planning sibling when ENKINEX_PM_ROOT is set.`,
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     });
   }
@@ -167,12 +172,13 @@ const IMPL = {
         ["Completed plans", PM_ROOT, walk(join("plan", "done", REPO), PM_ROOT), at],
       );
     }
-    groups.push(
-      ["Active plans (this repo)", ROOT, walk("plan").filter((p) => !p.startsWith("plan/done/")), ""],
-      ["Completed plans (this repo)", ROOT, walk("plan/done"), ""],
-      ["Discovery", ROOT, walk("discovery"), ""],
-      ["ADRs", ROOT, walk("architecture"), ""],
-    );
+    if (localPlan) {
+      groups.push(
+        ["Active plans (this repo)", ROOT, walk("plan").filter((p) => !p.startsWith("plan/done/")), ""],
+        ["Completed plans (this repo)", ROOT, walk("plan/done"), ""],
+      );
+    }
+    groups.push(["ADRs", ROOT, walk("architecture"), ""]);
     const lines = [];
     for (const [label, base, files, prefix] of groups) {
       if (!files.length) continue;
@@ -192,9 +198,10 @@ const IMPL = {
     }
     // The empty case has two causes and they need different fixes, so say which
     // one applies rather than making the reader guess.
+    const local = localPlan ? "plan/ or architecture/" : "architecture/";
     const empty = PM_ROOT
-      ? `No documents found in this repo (plan/, discovery/, architecture/) or in ${basename(PM_ROOT)}/plan/${REPO}/.`
-      : "No plan/, discovery/ or architecture/ documents in this repo. Plans may live in the private planning sibling — set ENKINEX_PM_ROOT to include them.";
+      ? `No documents found in this repo (${local}) or in ${basename(PM_ROOT)}/plan/${REPO}/.`
+      : `No ${local} documents in this repo. Plans live in the private planning sibling, not here — set ENKINEX_PM_ROOT to include them.`;
     return { isError: false, text: lines.length ? lines.join("\n") : empty };
   },
 };

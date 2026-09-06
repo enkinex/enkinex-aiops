@@ -36,6 +36,27 @@ expect_action() {
     [ "$got" = "$want" ] && ok "$pattern -> $want" || no "$pattern -> $want" "got $got"
 }
 
+# resolved_action <table> <command> — the verdict a whole command lands on:
+# the LAST pattern in the table that matches it. Measured against opencode
+# 1.18.29 on 2026-09-05, driving one bash call through a local provider: with
+# `probe view*: allow` written above `probe*: deny`, `probe view hello` was
+# refused; with the deny written first, the same command ran. Specificity does
+# not enter into it — only position.
+resolved_action() {
+    local pattern action out=""
+    while IFS=$'\t' read -r pattern action; do
+        [ -n "$pattern" ] || continue
+        # shellcheck disable=SC2254  # $pattern is the glob, deliberately
+        case "$2" in $pattern) out="$action" ;; esac
+    done <<<"$1"
+    printf '%s' "${out:-<none>}"
+}
+
+expect_resolved() {
+    local got; got="$(resolved_action "$1" "$2")"
+    [ "$got" = "$3" ] && ok "\`$2\` -> $3" || no "\`$2\` -> $3" "got $got"
+}
+
 section "interactive posture (repo opencode.jsonc)"
 INTERACTIVE="$(resolve "")"
 if [ -z "$INTERACTIVE" ]; then
@@ -75,6 +96,23 @@ else
     ok "no blanket 'just *' allow"
 fi
 
+section "ADR-0006 §2 as commands resolve, not as patterns are declared"
+# The cases above read what a rule declares. A rule nothing ever reaches
+# declares the same thing as one that governs, and from 79416a4 (2026-08-16)
+# that was the difference: `gh issue*: deny` sat below the per-verb entries, so
+# every `gh issue` command resolved to deny and ADR-0006's table was
+# decoration. These cases resolve whole commands instead.
+expect_resolved "$INTERACTIVE" 'gh issue view 42'                   allow
+expect_resolved "$INTERACTIVE" 'gh issue list --state open'         allow
+expect_resolved "$INTERACTIVE" 'gh issue create --title x'          ask
+expect_resolved "$INTERACTIVE" 'gh issue comment 42 --body x'       ask
+expect_resolved "$INTERACTIVE" 'gh issue edit 42 --add-label bug'   ask
+expect_resolved "$INTERACTIVE" 'gh issue delete 42'                 deny
+expect_resolved "$INTERACTIVE" 'gh issue transfer 42 enkinex/other' deny
+# The subcommand GitHub adds tomorrow: matched by the catch-all and nothing
+# else, which is the only reason the catch-all is worth keeping.
+expect_resolved "$INTERACTIVE" 'gh issue pin 42'                    deny
+
 section "headless profile (opencode.headless.json)"
 HEADLESS="$(resolve "$(cat "$ROOT/opencode.headless.json")")"
 if [ -z "$HEADLESS" ]; then
@@ -95,12 +133,10 @@ expect_action "$HEADLESS" 'gh pr create*'   deny
 expect_action "$HEADLESS" 'gh pr merge*'    deny
 # An unattended run must not file a public artefact in the org's name.
 #
-# Each write verb is denied by NAME, not just by the `gh issue*` catch-all or
-# the base `*` deny. The profile is an overlay, and precedence goes to the more
-# specific pattern — so the baseline's `gh issue create*: ask` outranks a
-# headless `gh issue*: deny` and survives into an unattended run. That is why
-# `gh pr create*` was already listed here, and the `no ask rules remain`
-# assertion below is what caught it when Issues were opened.
+# Each write verb is denied by NAME as well as by the `gh issue*` catch-all
+# that follows it. Under last-match-wins the catch-all is what resolves them,
+# so the named entries are redundancy on purpose: a denial nobody can grep for
+# is one nobody checks.
 expect_action "$HEADLESS" 'gh issue*'         deny
 expect_action "$HEADLESS" 'gh issue create*'  deny
 expect_action "$HEADLESS" 'gh issue comment*' deny

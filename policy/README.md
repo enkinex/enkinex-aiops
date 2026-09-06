@@ -52,8 +52,25 @@ harness.
 
 ## Failure behaviour
 
-A malformed payload, an unparseable response, or a missing guard **allows**
-the call rather than blocking it — a policy engine that breaks the session
-when it has a bad day gets removed. The opencode adapter logs to stderr when
-the guard cannot run. The deny path is fail-closed only for rules that
-actually matched.
+Three cases allow the call and a fourth blocks it, so they are worth keeping
+apart. The allow cases are deliberate: a policy engine that breaks the
+session when it has a bad day gets removed.
+
+- **Malformed payload — allows.** `guard.mjs` parses stdin inside a `try` and
+  exits 0 with no output when the parse throws. That is the guard's own
+  behaviour, so it holds in every harness.
+- **Missing guard — allows.** The opencode plugin's `existsSync` check
+  returns early when `.agents/policy/guard.mjs` is absent; an ungoverned repo
+  is not a broken one.
+- **Unparseable response — allows.** The plugin returns without a decision
+  when `JSON.parse` throws on the guard's stdout.
+- **Guard present but unrunnable — blocks.** A spawn error, a non-zero exit
+  or the 10-second timeout throws, and opencode aborts the tool call. The
+  file is there, so enforcement is expected: an unrunnable guard is a broken
+  policy path rather than an absent one, and allowing here would make every
+  rule advisory again.
+
+The last three are the opencode plugin's behaviour. Claude Code and Codex
+carry no adapter code — their hook entry runs `guard.mjs` directly, so what a
+missing, crashing or unparseable hook means there is the harness's decision
+rather than this policy's.

@@ -42,7 +42,7 @@ const hasFlag = (cmd, flag) => tokens(cmd).includes(flag);
 /** Matches the command and any `&&`/`;`/`|` chained segment of it. */
 const segments = (cmd) =>
   cmd
-    .split(/&&|\|\||;|\n/)
+    .split(/&&|\||;|\n/)
     .map((s) => s.trim())
     .filter(Boolean);
 

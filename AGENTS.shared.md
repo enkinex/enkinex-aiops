@@ -24,9 +24,11 @@ configuration surfaces (Databricks Asset Bundles) as typed, modular code.
   are separate repos. The `commit-msg` hook rejects a redundant scope.
 - **Never push, merge, or open PRs unless the user explicitly asks.** The
   iteration ends at a local commit. `gh` CLI is the only GitHub surface
-  (ADR-0002): no GitHub MCP, no Actions, no Projects, no Releases.
+  for mutations (ADR-0002): no GitHub MCP, no Projects, no Releases.
   **Issues are open** (ADR-0006): read them freely, creating or editing one
   is a prompt, and `gh issue delete`/`transfer` are denied outright.
+  **Actions run the regression gate and nothing else** (ADR-0007):
+  `.github/workflows/test.yml` is the only workflow a repo carries.
 - Never force-push to `main`; never rewrite history.
 - Before any repo edit: `git fetch origin`, confirm sync with `main`,
   create the branch. Commit at the end of the iteration.
@@ -61,8 +63,8 @@ from a repo checkout — as small numbered task files. **A repo with no
 local `plan/` is correct, not misconfigured**; do not create one, and do
 not plan in the repo you are editing.
 
-There is no `discovery/` stage. Analysis feeding a plan is an input to
-planning and belongs in `enkinex-pm`, not beside the code.
+No sub-project has a `discovery/` stage. Analysis feeding a plan is an
+input to planning and belongs in `enkinex-pm`, not beside the code.
 
 `architecture/` stays at each repo root. ADRs record one-way decisions
 only — procedural workflows are defined as executable artefacts (agents,
@@ -100,25 +102,11 @@ footers are not errors — the hook validates only the message being written.
 
 Do not switch tiers silently; model pins change only via PR.
 
+**There is no model-level fallback today** (AIOPS-14): a tier lists what may
+be pinned, not a chain anything falls through, so a pinned model that is down
+stops the run until a human re-pins it.
+
 **No agent is pinned to the free tier, and that is the decision, not an
-oversight** (AIOPS-12). The row above said "explore/triage", and the one agent
-that took it at its word could not do the job: it failed to finish a broad
-exploration step in 10 minutes on two occasions, it spends its output budget
-reasoning before it answers, and it returns `502 ResourceExhausted` from the
-upstream provider often enough to have done so during unrelated work. The
-first is a prompt problem; the other two are not, and a step that never
-returns is the most expensive failure an unattended run has — nobody is
-watching, and it has to be killed.
-
-Free is therefore for questions **you** ask, bounded, with a human reading the
-answer and nothing depending on it arriving. Anything the loop runs is mid or
-frontier. The evidence sits at the pin in `explore-enkinex.md`, so re-pinning
-to free means arguing with it rather than rediscovering it.
-
-### Code standards
-
-- KCL libraries: one module per concern, docstrings on every schema and
-  field (they feed `just docs`), `check` rules for enums/constraints,
-  `kcl vet` fixtures under `test/`. Gate: `just check` (fmt + lint + test).
-- Stage explicit paths only — never `git add -A` / `git add .`; skip
-  anything that looks like a secret.
+oversight** (AIOPS-12): the evidence sits at the pin in
+`opencode/agent/explore-enkinex.md`, so re-pinning to free means arguing with
+it rather than rediscovering it.

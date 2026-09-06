@@ -76,8 +76,12 @@ Each file is one task, derived backwards from the issue template it becomes:
 - **Register the task in `../enkinex-pm/plan/backlog.md`** — its project table and its priority. The
   backlog carries the order and the status; the folder carries the context. A plan file that no
   backlog row points at will not be picked up.
-- Status moves in the backlog row (`pending` · `in review` · `done`), not by moving the file. There
-  is no `done/` directory: a settled task keeps its number and its place.
+- The backlog row's status is `pending` · `done`, and it becomes `done` when the task's pull
+  request is **opened**, not when that PR merges. There is no `in review`: it would leave the merge
+  commit carrying a backlog that contradicts the change it closes.
+- A settled task also **moves** — into the project's folder under `done/` in `enkinex-pm`, keeping
+  its number, whether it shipped or was abandoned. That is what keeps `plan/<repo>/` meaning *what
+  is open*; `just plan-done <TASK-ID>` performs the move and derives the issue and PR back-links.
 
 ## The repository boundary
 

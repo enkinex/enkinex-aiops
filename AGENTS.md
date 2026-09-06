@@ -36,15 +36,15 @@ adapters that carry no rules of their own.
 | `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
 | `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
 | `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
-| `tests/` | **Golden-set regression** over the executable governance artefacts — 271 cases, no token cost. `just test`; gated by `just check`. Hermetic except one section: model pins are validated against the live OpenRouter catalog when the `opencode` binary is present, and skipped when it is not (CI). |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 295 assertions across seven suites, no token cost. `just test`; gated by `just check`. Hermetic except the model-pin check, which reads the live OpenRouter catalog. That check, the resolved-permission suite and the context7 server check need the `opencode` binary and skip without it — 247 assertions run in CI, 295 locally. |
 | `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
 | `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing; `project_state` reaches the private planning sibling only when `ENKINEX_PM_ROOT` is set. See `mcp/README.md`. |
 | `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |
 | `scripts/ledger.sh` | Cost snapshot writer; warns while the OpenRouter key has no spend limit. |
 | `scripts/opencode-headless.sh` | Launcher for unattended runs (`just headless <repo> …`); documents why the headless profile exists and how it is delivered. |
 | `opencode/` | Executable-artefact sources: `agent/` (10 agents — 5 github workflow + 5 loop), `command/` (`/ci-*` chain), `plugin/` (the opencode guard adapter). Synced to siblings' `.opencode/`. Note `tools` is plural: opencode never reads `.opencode/tool`. |
-| `.opencode/` | **Symlinks only** (`agent`, `command` → `../opencode/…`) so the sources are live in this repo without duplication. |
-| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution, 0006 GitHub Issues as the work unit. **The only planning surface left in this repo.** |
+| `.opencode/` | **Symlinks only** (`agent`, `command`, `plugin` → `../opencode/…`) so the sources are live in this repo without duplication. |
+| `architecture/` | ADRs — one-way decisions only (ADR-0004): 0002 opencode + OpenRouter adoption, 0004 executable governance, 0005 repo-local distribution, 0006 GitHub Issues as the work unit, 0007 Actions for the regression gate. **The only planning surface left in this repo.** |
 
 ### Planning lives elsewhere
 
@@ -62,16 +62,22 @@ it reports this repo's ADRs and nothing more (`mcp/README.md`).
 
 1. `git fetch origin`, confirm sync with `main`, branch
    `<type>/<short-slug>`.
-2. Work; commit with `<type>: <imperative ≤72>` + `Refs:` footer
-   (plan section) at the end of the iteration.
+2. Work; commit with `<type>: <imperative ≤72>` + `Refs: <TASK-ID>`
+   footer at the end of the iteration.
 3. **Never push or open a PR unless explicitly asked.** Squash-merge +
    `--delete-branch` is the only merge path.
-4. GitHub via `gh` CLI only — no MCP, no Actions, no Issues/Projects
-   (ADR-0002). Permission posture is mechanical in `opencode.jsonc`.
+4. GitHub via `gh` CLI only — no GitHub MCP, no Projects, no Releases
+   (ADR-0002). Issues are open per verb (ADR-0006); Actions run the CI
+   regression gate only, `.github/workflows/test.yml` (ADR-0007).
+   Permission posture is mechanical in `opencode.jsonc`.
 
 ## Current state
 
-Open tasks are in this repository's issues.
+ADR-0006 makes a GitHub issue the unit of work at the implement stage, and
+none has been created yet — the issue list is empty rather than current. Open
+work is ordered in `../enkinex-pm/plan/backlog.md`, and this repo's tasks are
+`../enkinex-pm/plan/enkinex-aiops/`. A task becomes an issue when it is picked
+up, through `just publish-issue` in that repo.
 
 ## History
 
@@ -86,10 +92,22 @@ Open tasks are in this repository's issues.
   a copy of the hook but is outside `REPOS`, so its copy stays permissive
   until [MGR-12](../enkinex-pm/plan/enkinex-manager/12-adr-0001-repoint.md)
   settles that repo's conventions.
-- **This repository was recreated from a clean root commit on 2026-08-06**
-  and published. The previous forty-commit history carried agent-memory and
-  task-spec files describing a private system. The decisions survive in
-  `architecture/` and in this file; the `Refs:` chain does not.
+- **The 2026-08-06 recreation did not remove the planning documents.** The
+  repository was rebuilt on a clean root commit (`709af9c`) and published,
+  which dropped the previous forty-commit history and its agent-memory and
+  task-spec files. Five documents were not dropped: `plan/opencode/` and
+  `discovery/opencode/`, 159,471 bytes, were part of that root commit and
+  were deleted only at `88d304b` (#7, 2026-08-12), a week after publication.
+  They hold the class of material `enkinex-pm` is private to protect —
+  branch-protection posture, private-repository inventory, membership, and a
+  credential review open at the time. `709af9c` is an ancestor of `main`, so
+  `git show 709af9c:plan/opencode/loop.md` still returns the file in any
+  clone; only a history rewrite would change that, and the rules below forbid
+  one. The choice is to leave the history intact, correct the record here,
+  and treat what those documents describe as publicly known — the remedy for
+  anything in them is to change the thing they describe, not the commit. The
+  decisions survive in `architecture/` and in this file; the `Refs:` chain
+  does not.
 
 <!-- BEGIN GENERATED: enkinex-aiops/AGENTS.shared.md — do not edit here; run "just sync-opencode" in enkinex-aiops -->
 ## Shared enkinex rules
@@ -118,9 +136,11 @@ configuration surfaces (Databricks Asset Bundles) as typed, modular code.
   are separate repos. The `commit-msg` hook rejects a redundant scope.
 - **Never push, merge, or open PRs unless the user explicitly asks.** The
   iteration ends at a local commit. `gh` CLI is the only GitHub surface
-  (ADR-0002): no GitHub MCP, no Actions, no Projects, no Releases.
+  for mutations (ADR-0002): no GitHub MCP, no Projects, no Releases.
   **Issues are open** (ADR-0006): read them freely, creating or editing one
   is a prompt, and `gh issue delete`/`transfer` are denied outright.
+  **Actions run the regression gate and nothing else** (ADR-0007):
+  `.github/workflows/test.yml` is the only workflow a repo carries.
 - Never force-push to `main`; never rewrite history.
 - Before any repo edit: `git fetch origin`, confirm sync with `main`,
   create the branch. Commit at the end of the iteration.
@@ -155,8 +175,8 @@ from a repo checkout — as small numbered task files. **A repo with no
 local `plan/` is correct, not misconfigured**; do not create one, and do
 not plan in the repo you are editing.
 
-There is no `discovery/` stage. Analysis feeding a plan is an input to
-planning and belongs in `enkinex-pm`, not beside the code.
+No sub-project has a `discovery/` stage. Analysis feeding a plan is an
+input to planning and belongs in `enkinex-pm`, not beside the code.
 
 `architecture/` stays at each repo root. ADRs record one-way decisions
 only — procedural workflows are defined as executable artefacts (agents,
@@ -194,26 +214,12 @@ footers are not errors — the hook validates only the message being written.
 
 Do not switch tiers silently; model pins change only via PR.
 
+**There is no model-level fallback today** (AIOPS-14): a tier lists what may
+be pinned, not a chain anything falls through, so a pinned model that is down
+stops the run until a human re-pins it.
+
 **No agent is pinned to the free tier, and that is the decision, not an
-oversight** (AIOPS-12). The row above said "explore/triage", and the one agent
-that took it at its word could not do the job: it failed to finish a broad
-exploration step in 10 minutes on two occasions, it spends its output budget
-reasoning before it answers, and it returns `502 ResourceExhausted` from the
-upstream provider often enough to have done so during unrelated work. The
-first is a prompt problem; the other two are not, and a step that never
-returns is the most expensive failure an unattended run has — nobody is
-watching, and it has to be killed.
-
-Free is therefore for questions **you** ask, bounded, with a human reading the
-answer and nothing depending on it arriving. Anything the loop runs is mid or
-frontier. The evidence sits at the pin in `explore-enkinex.md`, so re-pinning
-to free means arguing with it rather than rediscovering it.
-
-### Code standards
-
-- KCL libraries: one module per concern, docstrings on every schema and
-  field (they feed `just docs`), `check` rules for enums/constraints,
-  `kcl vet` fixtures under `test/`. Gate: `just check` (fmt + lint + test).
-- Stage explicit paths only — never `git add -A` / `git add .`; skip
-  anything that looks like a secret.
+oversight** (AIOPS-12): the evidence sits at the pin in
+`opencode/agent/explore-enkinex.md`, so re-pinning to free means arguing with
+it rather than rediscovering it.
 <!-- END GENERATED -->
