@@ -29,7 +29,7 @@ Nothing is ever written to `$HOME`.
 | Recipe | What it does |
 |---|---|
 | `just check` | **The gate** — the regression suite plus a drift check |
-| `just test` | 340 assertions over hooks, guard, resolved permissions, agent definitions, the loop runner, the cost ledger, the MCP server and the gates themselves. Offline except the model-pin check, which reads the live OpenRouter catalog. That check, the resolved-permission suite and the context7 server check need the `opencode` binary and skip without it — 282 assertions run in CI, 340 locally. A skip is reported and counted, never credited as a pass, and `just check` refuses a suite that asserted nothing |
+| `just test` | 346 assertions over hooks, guard, resolved permissions, agent definitions, the loop runner, the cost ledger, the MCP server and the gates themselves. Offline except the model-pin check, which reads the live OpenRouter catalog. That check, the resolved-permission suite and the context7 server check need the `opencode` binary and skip without it — 288 assertions run in CI, 346 locally. A skip is reported and counted, never credited as a pass, and `just check` refuses a suite that asserted nothing |
 | `just sync-opencode` | Install the shared layer into every repo in `REPOS` |
 | `just verify-opencode` | Report drift between the sources here and each repo's copy |
 | `just ledger` | Append a cost snapshot to `loop/loop-log.md` |
