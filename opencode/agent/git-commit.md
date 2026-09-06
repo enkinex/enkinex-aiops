@@ -62,7 +62,8 @@ Co-Authored-By: <model that produced the change>
   `commit-msg` hook accepts it and it is the **correct footer, not a bypass** — repo hygiene,
   tooling and dependency bumps legitimately advance no plan. Do not invent a task ID to satisfy
   the hook, and do not bury the reason in the body where the footer belongs.
-- **Never** `Closes:` / `Fixes:` / `Resolves:` — there are no GitHub Issues in enkinex repos.
+- **Never** `Closes:` / `Fixes:` / `Resolves:` — an issue is closed by hand after the squash merge,
+  not as a side effect of a commit message (ADR-0006).
 
 ## Action
 
