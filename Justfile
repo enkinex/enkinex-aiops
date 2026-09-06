@@ -35,20 +35,50 @@ loop-status:
 ledger:
     @{{justfile_directory()}}/scripts/ledger.sh
 
-# Golden-set regression over the executable governance artefacts
-test:
+# Golden-set regression over the executable governance artefacts.
+#
+# A suite that asserts nothing prints `0 passed` and exits 0, which reads as a
+# clean run. That is what CI has been getting from tests/config.test.sh since it
+# was written: opencode is not installed there, so its 49 assertions — including
+# the only mechanical backing for the ADR-0006 permission table — have never run
+# on a pull request. Suites that ran nothing are named at the end here.
+#
+# `just test strict` additionally refuses them, and that is the form `check`
+# uses: check runs where opencode is installed, so a whole-suite skip there is a
+# broken environment. Plain `just test` still exits 0 on a skip, because CI calls
+# it and failing would force the install decision AIOPS-24 does not take.
+test strict="":
     #!/usr/bin/env bash
-    set -euo pipefail
+    set -uo pipefail
     cd "{{justfile_directory()}}"
+    report="$(mktemp)"
+    trap 'rm -f "$report"' EXIT
     rc=0
+    skipped=0
+    empty=()
     for suite in tests/*.test.sh; do
         echo "═══ $suite ═══"
-        bash "$suite" || rc=1
+        : >"$report"
+        ENKINEX_TEST_REPORT="$report" bash "$suite" || rc=1
+        # A suite that died before summary() leaves the report empty. It ran
+        # nothing measurable either way, and rc is already 1.
+        read -r p f s <"$report" 2>/dev/null || { p=0; f=0; s=0; }
+        skipped=$((skipped + ${s:-0}))
+        [ "${p:-0}" -eq 0 ] && empty+=("$suite")
     done
+
+    [ "$skipped" -gt 0 ] && echo "" && echo "$skipped assertion(s) skipped"
+    if [ "${#empty[@]}" -gt 0 ]; then
+        echo ""
+        echo "asserted nothing: ${empty[*]}"
+        # `check` runs where opencode is installed, so a whole-suite skip there
+        # is a broken environment rather than a policy.
+        [ -n "{{strict}}" ] && { echo "refusing: a suite that asserts nothing is not a passing suite"; rc=1; }
+    fi
     exit "$rc"
 
 # The gate every change to this repo must pass
-check: test verify-opencode
+check: (test "strict") verify-opencode
 
 # Install the shared opencode layer into every sibling repo
 sync-opencode:
@@ -88,14 +118,27 @@ sync-opencode:
         echo "synced -> $repo"
     done
 
-# Report drift between the sources here and each repo's installed copy
+# Report drift between the sources here and each repo's installed copy.
+#
+# A REPOS entry with no clone used to `continue` in silence, so a workspace
+# holding none of the siblings printed "shared layer in sync across
+# enkinex-aiops and all sibling repos" and exited 0 — a claim about seven
+# repositories, made after examining none of them. The install half of the same
+# list has always said `SKIP $repo (not a repo)`; this half now reports it too,
+# and refuses. The cost is deliberate: a partial workspace stops passing
+# `just check`, because the sentence at the end is about all seven.
+#
+# ENKINEX_ROOT exists so that state is reachable from a test rather than only
+# by deleting a sibling.
 verify-opencode:
     #!/usr/bin/env bash
     set -uo pipefail
     SRC="{{justfile_directory()}}"
-    ROOT="{{justfile_directory()}}/.."
+    ROOT="${ENKINEX_ROOT:-{{justfile_directory()}}/..}"
     source "$SRC/scripts/shared-layer.sh"
     rc=0
+    examined=0
+    total=0
 
     check_agents_block "$SRC/AGENTS.shared.md" "$SRC/AGENTS.md" "enkinex-aiops" || rc=1
     check_claude_md "$SRC/CLAUDE.md" "enkinex-aiops" || rc=1
@@ -104,8 +147,10 @@ verify-opencode:
     check_mcp "$SRC" "$SRC" "enkinex-aiops" || rc=1
 
     for repo in {{REPOS}}; do
+        total=$((total + 1))
         dest="$ROOT/$repo"
-        [ -d "$dest/.git" ] || continue
+        [ -d "$dest/.git" ] || { echo "MISSING: $repo is not cloned at $ROOT — nothing was compared"; rc=1; continue; }
+        examined=$((examined + 1))
         cmp -s "$SRC/opencode.jsonc" "$dest/opencode.jsonc" || { echo "DRIFT: $repo/opencode.jsonc"; rc=1; }
         cmp -s "$SRC/opencode.headless.json" "$dest/opencode.headless.json" || { echo "DRIFT: $repo/opencode.headless.json"; rc=1; }
         check_agents_block "$SRC/AGENTS.shared.md" "$dest/AGENTS.md" "$repo" || rc=1
@@ -121,5 +166,7 @@ verify-opencode:
             fi
         done
     done
-    [ "$rc" -eq 0 ] && echo "shared layer in sync across enkinex-aiops and all sibling repos"
+    # Named counts, so the line cannot claim more than was looked at.
+    [ "$rc" -eq 0 ] && echo "shared layer in sync across enkinex-aiops and all $examined sibling repos"
+    [ "$examined" -lt "$total" ] && echo "$((total - examined)) of $total sibling repo(s) were never examined"
     exit "$rc"
