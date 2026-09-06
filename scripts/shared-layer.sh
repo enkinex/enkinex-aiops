@@ -10,6 +10,25 @@ END_MARK='<!-- END GENERATED -->'
 CLAUDE_MD_LINE_1='<!-- Claude Code reads CLAUDE.md, not AGENTS.md. This file exists only to import it. -->'
 CLAUDE_MD_LINE_2='@AGENTS.md'
 
+# What the layer does NOT distribute, and why: .gitignore.
+#
+# Asked and answered 2026-09-06 (AIOPS-25), when nine of the ten public repos
+# turned out not to ignore `.env`. The layer installs by replacement — every
+# install_* helper below does `rm -rf` then `cp -r`, which is what makes drift
+# detectable by a byte comparison — and a .gitignore is the repo's own file.
+# Replacing it would delete enkinex-org-website's Docusaurus and wrangler
+# block, including the `!.env.example` negation that has to stay last.
+#
+# Append-if-missing would avoid that, and it is a third install shape used
+# nowhere else here: it cannot be verified by comparison, so `verify-opencode`
+# would have nothing to report and the layer would gain a mode that drifts
+# silently. The nine repos were fixed by hand instead. Drift is not unwatched —
+# `publish-check` in enkinex-pm blocks on an un-ignored `.env`, which is how
+# this was found in the first place.
+#
+# The flip condition: a second per-repo file needing the same treatment. One
+# exception is a decision, two is a category, and a category earns the mode.
+
 # inject_shared <shared-fragment> <target AGENTS.md>
 # Replaces the generated block in the target, or appends it when absent.
 # Everything outside the markers is hand-owned and left untouched.
