@@ -29,6 +29,17 @@ definitions **and** the machinery that executes and enforces them.
    `loop/tasks/*.yaml` (notably `github-pr-cycle.yaml`), and
    `enkinex-governance` plugin hooks. These artefacts are the single
    source of truth.
+   **— Corrected 2026-09-05.** Two of those names never resolved.
+   `github-pr-cycle.yaml` was never written and no spec replaced it:
+   `loop/tasks/` holds `odcs-check-rule-audit.yaml` and
+   `okf-bundle-inventory.yaml`, and the runner cannot carry a PR cycle
+   at all — each step is a separate `opencode run` under
+   `opencode.headless.json`, where `git push`, `gh pr create` and
+   `gh pr merge` are denied (`loop/tasks/README.md`). The PR chain is
+   the `/ci-*` commands and their agents, named above, and nothing
+   else. The plugin is `opencode/plugin/enkinex-guard.js`, an adapter
+   that forwards `tool.execute.before` to `.agents/policy/guard.mjs`,
+   where the rules actually live; there is no `enkinex-governance`.
 2. **ADRs record only one-way decisions and their rationale** — the
    kind that cannot be expressed as code (vendor/posture choices,
    distribution shape, tier policy, this boundary). An ADR is one

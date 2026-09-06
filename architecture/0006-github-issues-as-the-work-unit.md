@@ -4,7 +4,7 @@
 - Date: 2026-08-16
 - Deciders: rodrigo@enkinex.com
 - Supersedes: ADR-0002 Decisions 4 and 5, **for Issues only**
-- Superseded by: —
+- Superseded by: ADR-0007, **in part** — Decision 4, for Actions only
 
 ## Context
 
@@ -72,6 +72,11 @@ planning was public.
    publishing surface this org does not use. **Issues are not a precedent for
    them.** Reopening any of the three requires its own ADR naming the concrete
    need, exactly as ADR-0002 §3 requires for GitHub MCP.
+   **— Superseded in part by ADR-0007 (2026-09-05): Actions, for CI
+   regression gates only.** This paragraph was written on 2026-08-16, eleven
+   days after `.github/workflows/test.yml` began running on every push and
+   pull request to `main` here (5711137, 2026-08-05), and it did not account
+   for that. Projects and Releases stay closed on the reasoning above.
 
 5. **`Closes:` / `Fixes:` / `Resolves:` footers stay rejected.** The
    `commit-msg` hook refuses them today and continues to. A footer that closes
@@ -110,7 +115,7 @@ planning was public.
   list, and nothing in this ADR maintains it. The discipline is that an issue
   is created from an approved plan and closed by hand at merge — both manual.
 - **Two trackers exist during the transition.** `enkinex-pm/plan/backlog.md`
-  remains the private ordering of work; issues are the public unit of
+  (private) remains the private ordering of work; issues are the public unit of
   implementation. They are not synchronised by anything, and if they disagree
   the backlog is authoritative.
 - The permission table grows five rules where it had one deny.

@@ -6,8 +6,9 @@
 - Supersedes: ADR-0001 (gh-CLI-only; record removed in the `.project`
   cleanup — its durable content is absorbed into this ADR)
 - Superseded by: ADR-0006, **in part** — Decisions 4 and 5, for GitHub
-  Issues only. Everything else here stands, including the no-Actions
-  corollary and the GitHub MCP denial
+  Issues only; ADR-0007, **in part** — Decision 4, for Actions used as a
+  CI regression gate. Everything else here stands, including the GitHub
+  MCP denial
 
 ## Context
 
@@ -49,6 +50,13 @@ whose MCP and permission models differ.
    restated there. The record is kept rather than rewritten: Issues were
    banned by adjacency to Actions, and that is the mistake worth being able
    to read.
+   **— Superseded in part by ADR-0007 (2026-09-05): Actions, for CI
+   regression gates only.** Projects and Releases stay closed. The
+   `github-pr-cycle.yaml` spec named above was never written: `loop/tasks/`
+   holds `odcs-check-rule-audit.yaml` and `okf-bundle-inventory.yaml`, and
+   the runner cannot drive a PR cycle — each step is a separate
+   `opencode run` under `opencode.headless.json`, where `git push`,
+   `gh pr create` and `gh pr merge` are denied (`loop/tasks/README.md`).
 5. **Permission posture ports to `opencode.jsonc`** with the same
    allow/ask/deny semantics; `gh issue|project|workflow|run|release`
    stays denied.
@@ -121,4 +129,4 @@ Decision recorded here.
 They are named without a leading `../` deliberately: the path would promise a
 link that resolves only for someone holding the private clone, and the name
 alone identifies the document without making that promise
-(`enkinex-pm/plan/README.md`, the redaction convention).
+(`enkinex-pm/plan/README.md` (private), the redaction convention).
