@@ -30,13 +30,13 @@ adapters that carry no rules of their own.
 | `AGENTS.md` | This file — repo-specific instructions (auto-loaded) plus the generated shared block. Edit outside the markers only. |
 | `CLAUDE.md` | Generated Claude Code adapter — a single `@AGENTS.md` import, no rules of its own. |
 | `opencode.headless.json` | **Headless permission overlay — source of truth.** Plain JSON (opencode rejects comments inline); no `ask` actions, so unattended runs behave the same with or without `--auto`. Rationale in `scripts/opencode-headless.sh`. |
-| `githooks/` | **Git hook sources** — `commit-msg`, `pre-commit`, `pre-push`. The mechanical form of the rules AGENTS.md states; synced to every repo's `.githooks/` and activated via `core.hooksPath`. |
+| `githooks/` | **Git hook sources** — `commit-msg`, `pre-commit`, `pre-push`. The mechanical form of the rules AGENTS.md states; synced to every `REPOS` and `ENFORCEMENT_ONLY` repo's `.githooks/` and activated via `core.hooksPath`; drift reported by `just verify-opencode`. |
 | `.githooks/` | Symlink → `githooks/` so the sources are live here without duplication. |
-| `policy/` | **Policy guard — source of truth.** `guard.mjs` (all rules) plus `adapters/` for Claude Code and Codex; the opencode adapter is `opencode/plugin/enkinex-guard.js`. Synced to `.agents/policy/`, `.claude/settings.json`, `.codex/hooks.json` — for every repo in `REPOS`, and for `POLICY_ONLY` repos which take this and nothing else. See `policy/README.md`. |
+| `policy/` | **Policy guard — source of truth.** `guard.mjs` (all rules) plus `adapters/` for Claude Code and Codex; the opencode adapter is `opencode/plugin/enkinex-guard.js`. Synced to `.agents/policy/`, `.claude/settings.json`, `.codex/hooks.json` — for every repo in `REPOS`, and for `ENFORCEMENT_ONLY` repos, which take this and the hooks and nothing else. See `policy/README.md`. |
 | `.agents/` | Harness-neutral artefact root; `policy` is a symlink → `../policy`. |
 | `.claude/` `.codex/` | Generated pointer-only adapters — a hook entry each, no rules. |
 | `loop/` | Loop runner inputs and logs: `tasks/*.yaml` specs, `runs.md` (per-run), `loop-log.md` (cumulative cost). `just loop <task>`, `just loop-status`. |
-| `tests/` | **Golden-set regression** over the executable governance artefacts — 346 assertions across eight suites, no token cost. `just test`; gated by `just check`. Hermetic except the model-pin check, which reads the live OpenRouter catalog. That check, the resolved-permission suite and the context7 server check need the `opencode` binary and skip without it — 288 assertions run in CI, 346 locally. A skip is counted apart from a pass and named at the end of the run; `just check` refuses a suite that asserted nothing, while `just test` still exits 0 so CI is not forced into an install decision (AIOPS-24). |
+| `tests/` | **Golden-set regression** over the executable governance artefacts — 354 assertions across eight suites, no token cost. `just test`; gated by `just check`. Hermetic except the model-pin check, which reads the live OpenRouter catalog. That check, the resolved-permission suite and the context7 server check need the `opencode` binary and skip without it — 296 assertions run in CI, 354 locally. A skip is counted apart from a pass and named at the end of the run; `just check` refuses a suite that asserted nothing, while `just test` still exits 0 so CI is not forced into an install decision (AIOPS-24). |
 | `loop/loop-log.md` | Cost ledger, appended by `just ledger` (OpenRouter `/api/v1/key` as source of truth, `opencode stats` as cross-check). |
 | `mcp/` | **enkinex MCP server — source of truth.** `enkinex.mjs` (kcl_vet, kcl_docs, project_state) plus the Claude Code `.mcp.json` adapter. Catalog is derived from the repo, so an unrelated repo pays nothing; `project_state` reaches the private planning sibling only when `ENKINEX_PM_ROOT` is set. See `mcp/README.md`. |
 | `scripts/shared-layer.sh` | Distribution helpers sourced by the Justfile (block injection, hook install, policy install, drift checks). |
@@ -88,11 +88,11 @@ up, through `just publish-issue` in that repo.
   resolving under `../enkinex-pm/plan/<repo>/`, and `commit-msg` enforces the
   shape rather than merely checking the line is non-blank. History is not
   rewritten and the old footers are not errors; the discontinuity is recorded
-  here so it is explained rather than discovered. Note `enkinex-manager` holds
-  a copy of the hook and is outside `REPOS`, so no sync carries **hooks** there;
-  it was brought to this grammar by hand on 2026-09-05. That repo is in
-  `POLICY_ONLY`, which distributes and compares the guard and its adapters and
-  nothing else — hooks included in the nothing.
+  here so it is explained rather than discovered. `enkinex-manager` held a
+  hand-copied hook, brought to this grammar by hand on 2026-09-05 and drifted
+  from this source by 2026-09-06. It is in `ENFORCEMENT_ONLY` now, which
+  distributes and compares the hooks and the guard, so that copy is maintained
+  rather than remembered (MGR-19).
 - **The 2026-08-06 recreation did not remove the planning documents.** The
   repository was rebuilt on a clean root commit (`709af9c`) and published,
   which dropped the previous forty-commit history and its agent-memory and

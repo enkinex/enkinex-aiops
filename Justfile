@@ -7,9 +7,15 @@
 # for publication (PM-07).
 REPOS := "enkinex-odcs enkinex-odps enkinex-org-website enkinex-databricks enkinex-okf enkinex-ossie enkinex-pm"
 
-# Repos taking the POLICY LAYER ONLY — the guard and its two pointer-only
-# adapters, and nothing else. No opencode.jsonc, no generated CLAUDE.md, no
-# injected AGENTS.shared.md block, no .opencode/ artefacts, no hooks.
+# Repos taking the MECHANICAL ENFORCEMENT LAYER ONLY — the git hooks, the
+# policy guard, and the guard's two pointer-only adapters. That pair is what
+# AGENTS.shared.md calls mechanical enforcement: hooks bind humans as well as
+# agents, and the guard covers what a hook structurally cannot see.
+#
+# Nothing else travels: no opencode.jsonc, no opencode.headless.json, no
+# generated CLAUDE.md, no injected AGENTS.shared.md block, no .agents/mcp or
+# .mcp.json, no .opencode/ artefacts. Enforcement travels; configuration and
+# artefacts do not.
 #
 # enkinex-manager refuses the shared block by name in its own AGENTS.md: the
 # block is written for repos holding enkinex's own code, and the rules that
@@ -22,9 +28,16 @@ REPOS := "enkinex-odcs enkinex-odps enkinex-org-website enkinex-databricks enkin
 # own .mcp.json, replace .githooks/ wholesale, and overturn a written refusal,
 # to obtain one script. This list is the narrower answer.
 #
+# The list was POLICY_ONLY until 2026-09-06 and carried only the guard. Hooks
+# joined it under MGR-19: `.githooks/` there was the last hand-installed
+# directory with nothing comparing it, and it had already drifted — by one
+# comment line in commit-msg and four in pre-commit, one of which asserted that
+# no sync reaches this repo, which had stopped being true. The name changed
+# with the contents rather than after them.
+#
 # One entry is an exception; a second would make it a category and earn a
 # first-class mechanism rather than a second list.
-POLICY_ONLY := "enkinex-manager"
+ENFORCEMENT_ONLY := "enkinex-manager"
 
 # Directories under opencode/ distributed to each repo's .opencode/.
 # NOTE: opencode discovers custom tools at .opencode/tools (plural only) —
@@ -104,7 +117,11 @@ sync-opencode:
     #!/usr/bin/env bash
     set -euo pipefail
     SRC="{{justfile_directory()}}"
-    ROOT="{{justfile_directory()}}/.."
+    # ENKINEX_ROOT for the same reason verify-opencode takes it: without it the
+    # install half of this recipe can only be exercised by writing into the real
+    # sibling checkouts, so "sync installs the hooks" would be a claim with no
+    # case behind it.
+    ROOT="${ENKINEX_ROOT:-{{justfile_directory()}}/..}"
     source "$SRC/scripts/shared-layer.sh"
 
     render_self "$SRC"
@@ -137,11 +154,12 @@ sync-opencode:
         echo "synced -> $repo"
     done
 
-    for repo in {{POLICY_ONLY}}; do
+    for repo in {{ENFORCEMENT_ONLY}}; do
         dest="$ROOT/$repo"
         [ -d "$dest/.git" ] || { echo "SKIP $repo (not a repo)"; continue; }
+        install_hooks "$SRC/githooks" "$dest"
         install_policy "$SRC" "$dest"
-        echo "synced -> $repo (policy only)"
+        echo "synced -> $repo (enforcement only)"
     done
 
 # Report drift between the sources here and each repo's installed copy.
@@ -192,15 +210,15 @@ verify-opencode:
             fi
         done
     done
-    for repo in {{POLICY_ONLY}}; do
+    for repo in {{ENFORCEMENT_ONLY}}; do
         total=$((total + 1))
         dest="$ROOT/$repo"
         [ -d "$dest/.git" ] || { echo "MISSING: $repo is not cloned at $ROOT — nothing was compared"; rc=1; continue; }
         examined=$((examined + 1))
-        # Absence and drift are the same signal here: check_policy compares four
-        # files, and a file that is not there fails the comparison like one that
-        # differs. That is the whole point of the list — a copy nothing compares
-        # is what produced the drifted hooks in this repo.
+        # Absence and drift are the same signal: a file that is not there fails
+        # the comparison like one that differs. That is the whole point of the
+        # list — a copy nothing compares is what produced the hook drift here.
+        check_hooks "$SRC/githooks" "$dest" "$repo" || rc=1
         check_policy "$SRC" "$dest" "$repo" || rc=1
     done
 
