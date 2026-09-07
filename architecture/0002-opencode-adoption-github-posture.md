@@ -99,7 +99,44 @@ whose MCP and permission models differ.
   unused; agents must route GitHub through `gh` — enforced by
   permission rules and the governance plugin.
 
-### Locked corollaries
+### Amendment, 2026-09-06 — Claude Code is exempt from the sole-gateway rule
+
+Decision 1 says OpenRouter is the **sole** model gateway. Claude Code is a
+supported harness here and does not route through it: it talks to Anthropic
+directly, on its own billing, under its own model selection. Either the rule had
+an unstated exception or the harness violated it, and no document said which
+(AIOPS-22).
+
+**Claude Code is exempt, and it is written here rather than left implied.**
+
+The alternative was tested before deciding, because an untested assumption is
+what parked this question for a month. OpenRouter does expose an
+Anthropic-compatible `/v1/messages` endpoint, and on 2026-09-06 it answered a
+system-prompted request with a correct `message` object and, on a second
+request, a valid `tool_use` block with the right tool name and arguments — the
+capability Claude Code depends on most. So the route exists at the API level.
+
+What is still untested is the half that matters: whether Claude Code the client
+drives that endpoint end to end — its auth flow, model naming, streaming and
+prompt caching. Confirming that means reconfiguring a live harness rather than
+calling an endpoint, so it is not evidence this decision has. Adopting the
+route on what is known would commit the org's second harness to a path whose
+failure mode is discovered in use, which is the shape of the original mistake.
+
+**The cost of the exemption, stated plainly:** `just ledger` reads OpenRouter's
+key endpoint as the source of truth for spend, so an exempt harness spends money
+this control plane cannot see. The ledger now says so rather than reporting a
+total that is not one. This is a smaller loss than it looks — the exempt spend
+is billed and visible to Anthropic, just not here — but the ledger's number is
+now explicitly partial, and anyone reading it for "what did the org spend" has
+to add a second source.
+
+**What would revisit this:** a Claude Code session verified end to end against
+`ANTHROPIC_BASE_URL` pointed at OpenRouter. That turns the exemption back into a
+choice rather than a constraint, and the endpoint evidence above is where that
+work starts.
+
+## Locked corollaries
 
 - GitHub MCP may be introduced only via a new ADR naming the concrete
   read (never mutation) it enables that `gh --json/--jq` cannot.

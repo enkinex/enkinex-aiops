@@ -13,3 +13,6 @@ commits, pushes or opens a PR.
 | 2026-08-04T22:11:39Z | okf-bundle-inventory | ../enkinex-okf | explore-enkinex,docs-writer | missing-output | just check | 20s | 0.0050 | 6 |
 | 2026-08-04T22:16:01Z | okf-bundle-inventory | ../enkinex-okf | explore-enkinex,docs-writer | ok | just check | 62s | 0.0050 | 7 |
 | 2026-08-14T00:19:31Z | odcs-check-rule-audit | ../enkinex-odcs | build-kcl,review-standard | ok | just check | 165s | 0.1215 | 0 |
+| 2026-09-07T00:55:05Z | ossie-schema-coverage | ../enkinex-ossie | explore-enkinex,review-standard | ok | just check | 120s | 0.0545 | 0 |
+| 2026-09-07T00:57:23Z | org-website-tutorial-drift | ../enkinex-org-website | explore-enkinex,docs-writer | gate-red | npm run typecheck | 148s | 0.1278 | 1 |
+| 2026-09-07T01:01:25Z | org-website-tutorial-drift | ../enkinex-org-website | explore-enkinex,docs-writer | ok | npm run typecheck | 57s | 0.0188 | 0 |

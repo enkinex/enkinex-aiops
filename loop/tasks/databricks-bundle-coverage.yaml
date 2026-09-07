@@ -1,0 +1,34 @@
+task: Report which Databricks Asset Bundle fields enkinex-databricks does not model.
+repo: ../enkinex-databricks
+gate: just check
+retries: 1
+
+# Included on its own merits (AIOPS-21). This repo was excluded from the loop
+# as "the benchmark vehicle" — a framing the org retired on 2026-09-05 — and an
+# exclusion whose only reason has been withdrawn is not an exclusion. It is a
+# KCL library with the same `just check` gate as odcs, odps, okf and ossie, so
+# it gets the same treatment. That it is a v0.1.0 scaffold is what makes a
+# coverage report worth reading rather than a reason to skip it.
+expect:
+  changed: false
+  files: []
+
+steps:
+  - agent: explore-enkinex
+    prompt: |
+      List the *.k files in this repository and read the bundle schema
+      definitions. Answer in at most 10 lines: which Databricks Asset Bundle
+      top-level keys are modelled here? Do not modify anything.
+
+  - agent: review-standard
+    prompt: |
+      A previous step reported:
+
+      ---
+      {{previous}}
+      ---
+
+      Against the Databricks bundle reference vendored in this repository, name
+      the top-level keys the previous step did not list. Mark each CONFIRMED
+      MISSING or ALREADY MODELLED. Be sceptical of the previous step. Write
+      nothing to disk; reply only.

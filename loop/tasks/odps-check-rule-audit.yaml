@@ -1,0 +1,37 @@
+task: Audit enkinex-odps check rules against the ODPS JSON schema and report gaps.
+repo: ../enkinex-odps
+gate: just check
+retries: 1
+
+# Read-only, like its odcs sibling: the deliverable is the report in the run
+# output, read by a person before any of it becomes a change. The effect check
+# is disabled deliberately — nothing is written, so `changed: false` is the
+# assertion, not an omission.
+expect:
+  changed: false
+  files: []
+
+steps:
+  # Mid tier. The free model stalled past ten minutes on the equivalent odcs
+  # and okf prompts (AIOPS-12), so this is a pin with evidence behind it.
+  - agent: build-kcl
+    prompt: |
+      Use glob to list the *.k files under this repository. Read the one that
+      defines output ports only.
+
+      Answer in at most 12 lines: which properties in that file have a KCL
+      `check` rule, and which look like they constrain a value but have none?
+      Do not modify anything.
+
+  - agent: review-standard
+    prompt: |
+      A previous step reported:
+
+      ---
+      {{previous}}
+      ---
+
+      Verify those claims against the ODPS JSON schema vendored in this
+      repository. State clearly which are CONFIRMED and which are WRONG. Be
+      sceptical: the previous step ran on a mid-tier model. Write nothing to
+      disk; reply only.

@@ -1,0 +1,47 @@
+task: Report where the enkinex.org tutorials disagree with the libraries they teach.
+repo: ../enkinex-org-website
+gate: npm run typecheck
+
+# The second gate type, and the only repo behind it. Every other spec here runs
+# `just check`; this one is a Docusaurus site with no Justfile, so a loop run
+# against it is the only thing that exercises the runner's non-KCL path
+# (AIOPS-21). The gate is cheap and hermetic — tsc, no network, no build.
+#
+# PREREQUISITE: `npm ci` in ../enkinex-org-website. `tsc` comes from
+# node_modules, which is gitignored, so in a fresh checkout this gate is red
+# for a reason that has nothing to do with the run. The first attempt at this
+# spec proved why that matters: the gate went red, the repair step diagnosed
+# the missing binary correctly, and then "fixed" it by rewriting the repo's
+# `typecheck` script to `npx --package=typescript@~6.0.2 tsc --noEmit` — an
+# unrequested change to a public repository's build configuration, made
+# unattended, to satisfy a gate. The edit was reverted, `npm ci` was run, and
+# the same spec then passed in 57s for $0.0188 with a clean tree.
+retries: 1
+
+# Read-only. The tutorials are pinned to the library versions they teach, so a
+# drift report is a list for a person to act on, not an edit to make
+# unattended: correcting a tutorial means deciding whether the tutorial or the
+# pin is wrong, and that is not the loop's call.
+expect:
+  changed: false
+  files: []
+
+steps:
+  - agent: explore-enkinex
+    prompt: |
+      Read docs/governance/odcs/ and list, in at most 12 lines, every KCL
+      import path and schema name the tutorial pages reference. Do not modify
+      anything.
+
+  - agent: docs-writer
+    prompt: |
+      A previous step reported these references from the enkinex.org tutorials:
+
+      ---
+      {{previous}}
+      ---
+
+      The library they teach is the sibling checkout ../enkinex-odcs. For each
+      reference, say whether it still resolves there: CONFIRMED, RENAMED (give
+      the new name), or GONE. Be sceptical — the previous step may have
+      misread a path. Write nothing to disk; reply only.
