@@ -141,4 +141,21 @@ done
 [ -e "$FAKE/enkinex-manager/opencode.jsonc" ] || ok "sync carries nothing but enforcement"
 rm -rf "$FAKE"
 
+section "the eval suite costs money, so the gate must not call it"
+# AIOPS-13: `just check` stays free, fast and hermetic. A gate that spends per
+# run is one people learn to skip, and this suite is the only thing in the repo
+# that makes a live model call.
+PLAN="$(cd "$ROOT" && just --dry-run check 2>&1)"
+case "$PLAN" in
+    *run.mjs*) no "check does not invoke the eval runner" "the gate would spend money" ;;
+    *)         ok "check does not invoke the eval runner" ;;
+esac
+
+# And it refuses rather than skipping. A suite that quietly passes with no key
+# is the gate-that-passes-by-not-running shape AIOPS-24 was about, one layer up.
+OUT="$(cd "$ROOT" && env -u OPENROUTER_API_KEY node .agents/evals/run.mjs 2>&1)"; ST=$?
+[ "$ST" -ne 0 ] && ok "the eval runner refuses without a key" ||
+    no "the eval runner refuses without a key" "exited 0 with no key"
+assert_contains "and says why, rather than skipping" "$OUT" "there is no offline mode"
+
 summary
