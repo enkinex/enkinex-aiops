@@ -120,6 +120,16 @@ printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
 echo "ledger: appended to ${LOG#"$ROOT"/}"
 printf '  OpenRouter total $%s · daily $%s · monthly $%s\n' "$total" "$daily" "$monthly"
 
+# This figure is OpenRouter's, and OpenRouter is not the only gateway the org
+# uses. ADR-0002 exempted Claude Code from the sole-gateway rule on 2026-09-06
+# (AIOPS-22): it bills Anthropic directly, so its spend is real, visible to
+# Anthropic, and invisible here. Saying so every run costs one line and stops
+# the number being read as a total it is not — the alternative is a ledger that
+# quietly under-reports, which is the same shape as a gate that passes by not
+# running.
+printf '  this is OpenRouter only — Claude Code bills Anthropic directly and is not counted (ADR-0002)\n'
+
+
 if [ "$limit" != "none" ]; then
     printf '  spend ceiling: per-key limit $%s\n' "$limit"
 elif [ "$credits_left" != "-" ]; then

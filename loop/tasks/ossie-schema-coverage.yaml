@@ -1,0 +1,32 @@
+task: Report which Apache Ossie 0.2.0.dev0 concepts enkinex-ossie does not yet model.
+repo: ../enkinex-ossie
+gate: just check
+retries: 1
+
+# This library is the earliest in its lifecycle — `SemanticModel` and one field
+# at the time of writing — so the interesting output is the gap list, not the
+# rule audit the mature libraries get. Read-only for the same reason as the
+# others: a person decides what becomes work.
+expect:
+  changed: false
+  files: []
+
+steps:
+  - agent: explore-enkinex
+    prompt: |
+      List the *.k files in this repository and read every schema definition
+      you find. Answer in at most 10 lines: which Ossie concepts are modelled,
+      and what is the shape of each? Do not modify anything.
+
+  - agent: review-standard
+    prompt: |
+      A previous step reported:
+
+      ---
+      {{previous}}
+      ---
+
+      Against the vendored Ossie schema in this repository, name the concepts
+      it defines that the previous step did not list. Mark each CONFIRMED
+      MISSING or ALREADY MODELLED. Be sceptical of the previous step. Write
+      nothing to disk; reply only.
