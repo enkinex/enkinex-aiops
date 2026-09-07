@@ -112,6 +112,20 @@ test strict="":
 # The gate every change to this repo must pass
 check: (test "strict") verify-opencode
 
+# Agent-output evals — live model calls, real spend, NOT part of `check`.
+#
+# The golden set covers the artefacts and never asks a model anything, so a
+# re-pin or a rewritten agent instruction can degrade every output in the org
+# while `just test` stays green. This asks (AIOPS-13).
+#
+# It is deliberately outside `check`: the gate stays free, fast and hermetic,
+# and a gate that costs money per run is one people learn to skip. Each agent
+# is evaluated on the model its own frontmatter pins, a run prints what it
+# cost, and it aborts above the budget in .agents/evals/cases.json. The three
+# decisions behind those choices are recorded in .agents/evals/README.md.
+eval *filter:
+    @node {{justfile_directory()}}/.agents/evals/run.mjs {{filter}}
+
 # Install the shared opencode layer into every sibling repo
 sync-opencode:
     #!/usr/bin/env bash

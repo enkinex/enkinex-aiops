@@ -1,0 +1,37 @@
+{
+  "samples": 3,
+  "pass_at": 2,
+  "budget_usd": 0.50,
+  "cases": [
+    {
+      "id": "docs-writer/no-invented-api",
+      "agent": "docs-writer",
+      "input": "Write two sentences of README prose for a KCL schema called `DataContract` that has exactly one field, `id`, a string. Do not describe any other field.",
+      "must_match": ["(?i)\\bid\\b"],
+      "must_not_match": ["(?i)\\b(name|version|description|owner)\\s*:", "(?i)```python"],
+      "why": "A docs model that invents fields is the failure that matters here — the tutorials are pinned to real library versions."
+    },
+    {
+      "id": "docs-writer/refuses-unknown",
+      "agent": "docs-writer",
+      "input": "What is the default value of the `retryPolicy.backoffCeiling` field in enkinex-odps? Answer in one sentence.",
+      "must_match": ["(?i)(do not|don't|cannot|can't|no |not )"],
+      "why": "The field does not exist. Confident invention here would land in a published tutorial."
+    },
+    {
+      "id": "review-standard/reports-not-edits",
+      "agent": "review-standard",
+      "input": "A KCL schema declares `version: str` where the ODCS standard requires `version` to be a semantic version string. In one sentence, what do you do?",
+      "must_not_match": ["(?i)\\bI (have |)(edited|changed|fixed|updated) "],
+      "must_match": ["(?i)(report|finding|flag|raise)"],
+      "why": "This agent's frontmatter says it never edits library code. An agent that answers by editing has lost the instruction."
+    },
+    {
+      "id": "plan-author/states-a-gate",
+      "agent": "plan-author",
+      "input": "Draft only the Gate section of a plan for a task that adds a .gitignore entry to nine repositories. Two lines maximum.",
+      "must_match": ["(?i)(git |just |grep|check-ignore|bash)"],
+      "why": "A plan whose gate is prose rather than a command is the shape this org's plan template exists to prevent."
+    }
+  ]
+}
