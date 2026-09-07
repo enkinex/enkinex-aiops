@@ -104,7 +104,17 @@ Do not switch tiers silently; model pins change only via PR.
 
 **There is no model-level fallback today** (AIOPS-14): a tier lists what may
 be pinned, not a chain anything falls through, so a pinned model that is down
-stops the run until a human re-pins it.
+stops the run until a human re-pins it. Provider-level failover *within* a
+model is automatic and unaffected; this is only about the model itself being
+down or rate-limited.
+
+**When that happens, re-pin in this order:** `moonshotai/kimi-k3` →
+`anthropic/claude-opus-5` → `openai/gpt-5.6`. Three agents pin k3 —
+`plan-author`, `pr-review`, `review-standard` — and they do plans, reviews and
+ADRs, which is long-context reasoning over prose; Opus is the closer
+substitute for that, at a higher rate, so re-pin back when k3 returns. The
+order is written down so an outage is followed rather than decided under
+pressure, and re-pinning is still a PR (ADR-0002).
 
 **No agent is pinned to the free tier, and that is the decision, not an
 oversight** (AIOPS-12): the evidence sits at the pin in
